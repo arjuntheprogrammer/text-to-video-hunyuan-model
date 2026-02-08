@@ -1,3 +1,4 @@
+import logging
 from pathlib import Path
 
 import gradio as gr
@@ -6,6 +7,8 @@ from PIL import Image
 from app.config import settings
 from app.pipeline import get_pipeline_manager
 from app.utils import ensure_directories
+
+LOGGER = logging.getLogger(__name__)
 
 
 def _generate_from_ui(
@@ -17,6 +20,15 @@ def _generate_from_ui(
     fps: int,
     seed: int,
 ) -> tuple[str | None, str]:
+    LOGGER.info(
+        "Gradio generation request received. prompt_len=%d num_frames=%s steps=%s fps=%s guidance_scale=%s seed=%s",
+        len(prompt or ""),
+        num_frames,
+        steps,
+        fps,
+        guidance_scale,
+        seed,
+    )
     manager = get_pipeline_manager()
 
     if image is None:
@@ -39,8 +51,16 @@ def _generate_from_ui(
             seed=use_seed,
         )
     except Exception as exc:
+        LOGGER.exception("Gradio generation failed")
         return None, f"Generation failed: {exc}"
 
+    LOGGER.info(
+        "Gradio generation completed. output=%s seed=%s frames=%s fps=%s",
+        Path(output_path).name,
+        used_seed,
+        used_num_frames,
+        used_fps,
+    )
     return (
         str(output_path),
         f"Generated {Path(output_path).name} (seed={used_seed}, frames={used_num_frames}, fps={used_fps})",

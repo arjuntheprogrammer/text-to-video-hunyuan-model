@@ -10,6 +10,8 @@ class Settings:
 
         self.models_dir = Path(os.getenv("HF_HOME", self.base_dir / "models"))
         self.outputs_dir = Path(os.getenv("OUTPUT_DIR", self.base_dir / "outputs"))
+        self.logs_dir = Path(os.getenv("LOG_DIR", self.base_dir / "logs"))
+        self.app_log_file = Path(os.getenv("APP_LOG", self.logs_dir / "hunyuan_app.log"))
 
         self.api_host = os.getenv("API_HOST", "0.0.0.0")
         self.api_port = int(os.getenv("API_PORT", "8000"))

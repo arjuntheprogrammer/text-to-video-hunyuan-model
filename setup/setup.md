@@ -29,6 +29,7 @@ The script is idempotent and non-interactive:
 10. Sets cache/runtime paths in `.env` to repo-local folders:
    - `HF_HOME`, `HF_HUB_CACHE`, `TORCH_HOME` -> `<repo>/models`
    - `OUTPUT_DIR` -> `<repo>/outputs`
+   - `LOG_DIR`, `APP_LOG` -> `<repo>/logs/...`
    - Removes deprecated `TRANSFORMERS_CACHE` entry if present
 11. Starts app in background (`python run.py` in Conda env).
 12. Waits for `http://127.0.0.1:8000/health` to become available.
@@ -87,6 +88,8 @@ INSTALL_VSCODE_EXTENSIONS=0 ./setup/setup.sh
 - API: `http://127.0.0.1:8000`
 - Docs: `http://127.0.0.1:8000/docs`
 - Gradio: `http://127.0.0.1:7860`
+
+`setup.sh` appends to `hunyuan_app.log` on each restart (no truncation), so logs remain after process stop/kill.
 
 ## Runtime compatibility notes
 

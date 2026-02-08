@@ -31,6 +31,7 @@ app.add_middleware(
 @app.on_event("startup")
 def startup_event() -> None:
     ensure_directories()
+    LOGGER.info("FastAPI startup complete.")
 
 
 @app.get("/health", response_model=HealthResponse)
@@ -56,6 +57,16 @@ async def generate(
     fps: int = Form(settings.default_fps),
     seed: int | None = Form(default=None),
 ) -> GenerateResponse:
+    LOGGER.info(
+        "API /generate request received. filename=%s prompt_len=%d num_frames=%s steps=%s fps=%s guidance_scale=%s seed=%s",
+        image.filename,
+        len(prompt),
+        num_frames,
+        steps,
+        fps,
+        guidance_scale,
+        seed,
+    )
     manager = get_pipeline_manager()
 
     if not manager.model_loaded:
@@ -84,11 +95,19 @@ async def generate(
             seed=seed,
         )
     except ValueError as exc:
+        LOGGER.warning("Generation rejected by validation: %s", exc)
         raise HTTPException(status_code=400, detail=str(exc)) from exc
     except Exception as exc:
         LOGGER.exception("Generation failed with unhandled exception")
         raise HTTPException(status_code=500, detail=f"Generation failed: {exc}") from exc
 
+    LOGGER.info(
+        "API /generate completed. output=%s seed=%s frames=%s fps=%s",
+        output_path.name,
+        used_seed,
+        used_num_frames,
+        used_fps,
+    )
     return GenerateResponse(
         filename=output_path.name,
         output_path=str(output_path),

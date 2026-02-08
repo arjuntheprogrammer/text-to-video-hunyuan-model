@@ -1,3 +1,4 @@
+import logging
 from pathlib import Path
 from typing import Iterable
 
@@ -7,6 +8,8 @@ from PIL import Image
 
 from app.config import settings
 from app.utils import build_timestamped_filename, ensure_directories
+
+LOGGER = logging.getLogger(__name__)
 
 
 def _normalize_frame(frame: np.ndarray | Image.Image) -> np.ndarray:
@@ -41,6 +44,7 @@ def save_frames_to_mp4(
     frame_list = list(frames)
     if not frame_list:
         raise ValueError("No frames to encode.")
+    LOGGER.info("Encoding video to mp4. output=%s fps=%s frames=%d", output_path, fps, len(frame_list))
 
     normalized_frames = [_normalize_frame(frame) for frame in frame_list]
 
@@ -58,4 +62,5 @@ def save_frames_to_mp4(
     finally:
         writer.close()
 
+    LOGGER.info("Video encode complete. output=%s", output_path)
     return output_path

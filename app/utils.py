@@ -8,6 +8,7 @@ from app.config import settings
 def ensure_directories() -> None:
     settings.models_dir.mkdir(parents=True, exist_ok=True)
     settings.outputs_dir.mkdir(parents=True, exist_ok=True)
+    settings.logs_dir.mkdir(parents=True, exist_ok=True)
 
 
 def build_timestamped_filename(prefix: str = "video", suffix: str = ".mp4") -> str:

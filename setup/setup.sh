@@ -273,6 +273,8 @@ upsert_env_key "${ENV_FILE}" "HF_HUB_CACHE" "${HF_HOME_DIR}"
 remove_env_key "${ENV_FILE}" "TRANSFORMERS_CACHE"
 upsert_env_key "${ENV_FILE}" "TORCH_HOME" "${HF_HOME_DIR}"
 upsert_env_key "${ENV_FILE}" "OUTPUT_DIR" "${REPO_DIR}/outputs"
+upsert_env_key "${ENV_FILE}" "LOG_DIR" "${LOG_DIR}"
+upsert_env_key "${ENV_FILE}" "APP_LOG" "${APP_LOG}"
 upsert_env_key "${ENV_FILE}" "API_HOST" "0.0.0.0"
 upsert_env_key "${ENV_FILE}" "API_PORT" "8000"
 upsert_env_key "${ENV_FILE}" "GRADIO_SERVER_NAME" "0.0.0.0"
@@ -303,6 +305,7 @@ if [[ ! -f "${APP_PID_FILE}" ]]; then
   fi
 
   log "Starting application in background."
+  printf '\n[setup] ===== app start %s =====\n' "$(date -u '+%Y-%m-%dT%H:%M:%SZ')" >> "${APP_LOG}"
   nohup bash -lc "
     set -euo pipefail
     source '${CONDA_DIR}/etc/profile.d/conda.sh'
@@ -312,7 +315,7 @@ if [[ ! -f "${APP_PID_FILE}" ]]; then
     source '${ENV_FILE}'
     set +a
     python run.py
-  " >"${APP_LOG}" 2>&1 &
+  " >>"${APP_LOG}" 2>&1 &
   echo $! > "${APP_PID_FILE}"
 fi
 

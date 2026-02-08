@@ -1,6 +1,7 @@
 import logging
 import random
 import threading
+import time
 from pathlib import Path
 from typing import Any
 
@@ -36,6 +37,8 @@ class HunyuanVideoPipelineManager:
 
     def _load_pipeline(self) -> None:
         ensure_directories()
+        start_time = time.perf_counter()
+        LOGGER.info("Loading model pipeline. model_id=%s cache_dir=%s", settings.model_id, settings.models_dir)
         token = settings.hf_token or None
         if token is None:
             LOGGER.warning(
@@ -96,7 +99,11 @@ class HunyuanVideoPipelineManager:
                     )
 
             self.model_loaded = True
-            LOGGER.info("Loaded model: %s", settings.model_id)
+            LOGGER.info(
+                "Loaded model pipeline successfully. model_id=%s elapsed=%.2fs",
+                settings.model_id,
+                time.perf_counter() - start_time,
+            )
         except Exception as exc:
             self.model_loaded = False
             self.load_error = str(exc)
@@ -147,6 +154,15 @@ class HunyuanVideoPipelineManager:
 
         used_seed = seed if seed is not None else random.randint(0, 2**31 - 1)
         generator = torch.Generator(device=self.device).manual_seed(used_seed)
+        LOGGER.info(
+            "Pipeline generation starting. seed=%s frames=%s steps=%s fps=%s guidance=%.2f",
+            used_seed,
+            safe_num_frames,
+            safe_steps,
+            safe_fps,
+            safe_guidance,
+        )
+        generation_start = time.perf_counter()
 
         with self._lock:
             with torch.inference_mode():
@@ -164,6 +180,12 @@ class HunyuanVideoPipelineManager:
             raise RuntimeError("No frames generated.")
 
         output_path = save_frames_to_mp4(frames=frames, fps=safe_fps)
+        LOGGER.info(
+            "Pipeline generation completed. output=%s frames=%d elapsed=%.2fs",
+            output_path,
+            len(frames),
+            time.perf_counter() - generation_start,
+        )
         return output_path, used_seed, safe_num_frames, safe_fps
 
 

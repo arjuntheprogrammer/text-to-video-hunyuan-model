@@ -101,6 +101,7 @@ curl -O "http://localhost:8000/outputs/<filename>.mp4"
 - `./logs` stores runtime logs (`hunyuan_app.log`, health snapshot, pid file)
 
 Both persist across restarts in the same filesystem.
+`hunyuan_app.log` is append-only by default in `setup/setup.sh`, so previous runs remain in the same file.
 
 ## Setup Folder
 

@@ -119,6 +119,9 @@ INSTALL_VSCODE_EXTENSIONS=0 ./setup/setup.sh
   - appends realism instructions to user prompt
   - applies negative prompt terms to reduce flicker/fade/morph artifacts
   - optional overrides: `DEFAULT_PROMPT_SUFFIX`, `DEFAULT_NEGATIVE_PROMPT`
+- Generation retry behavior:
+  - first attempt uses user-requested frames/steps at highest allowed resolution
+  - frame/step and resolution are downgraded only after OOM
 
 ## Restart app manually
 

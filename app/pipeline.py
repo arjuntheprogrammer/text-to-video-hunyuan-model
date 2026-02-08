@@ -276,10 +276,19 @@ class HunyuanVideoPipelineManager:
         attempted_profiles: list[str] = []
 
         original_max_side = max(original_size)
-        if original_max_side > settings.max_input_image_side:
-            resolution_seed = [640, 512, 384]
-        else:
-            resolution_seed = [settings.max_input_image_side, 768, 640, 512, 384]
+        highest_allowed_side = min(original_max_side, max(384, settings.max_input_image_side))
+        resolution_seed = [
+            highest_allowed_side,
+            2048,
+            1536,
+            1280,
+            1024,
+            896,
+            768,
+            640,
+            512,
+            384,
+        ]
         resolution_candidates = []
         for side in resolution_seed:
             resolved_side = min(original_max_side, max(384, side))
@@ -307,37 +316,19 @@ class HunyuanVideoPipelineManager:
                     input_image.size[1],
                 )
 
-            conservative_mode = (
-                safe_num_frames > settings.oom_safe_num_frames
-                or safe_steps > settings.oom_safe_steps
-            )
-            if conservative_mode:
-                preferred_frames = min(safe_num_frames, settings.oom_safe_num_frames)
-                preferred_steps = min(safe_steps, settings.oom_safe_steps)
-                if input_image.size != original_size:
-                    preferred_frames = min(preferred_frames, 16)
-                    preferred_steps = min(preferred_steps, 10)
-                # Use stricter profile as resolution gets smaller to avoid repeated OOM cascades.
-                if max(input_image.size) <= 640:
-                    preferred_frames = min(preferred_frames, 24)
-                    preferred_steps = min(preferred_steps, 10)
-                if max(input_image.size) <= 512:
-                    preferred_frames = min(preferred_frames, settings.min_num_frames)
-                    preferred_steps = min(preferred_steps, settings.min_inference_steps)
-                frame_step_candidates = [
-                    (preferred_frames, preferred_steps),
-                    (min(preferred_frames, 24), min(preferred_steps, 10)),
-                    (settings.min_num_frames, settings.min_inference_steps),
-                ]
-            else:
-                frame_step_candidates = [
-                    (safe_num_frames, safe_steps),
-                    (min(safe_num_frames, 128), min(safe_steps, 24)),
-                    (min(safe_num_frames, 96), min(safe_steps, 22)),
-                    (min(safe_num_frames, 64), min(safe_steps, 18)),
-                    (min(safe_num_frames, 48), min(safe_steps, 14)),
-                    (settings.min_num_frames, settings.min_inference_steps),
-                ]
+            # Always honor user-requested frames/steps first, then downgrade only after OOM.
+            frame_step_candidates = [
+                (safe_num_frames, safe_steps),
+                (min(safe_num_frames, 128), min(safe_steps, 24)),
+                (min(safe_num_frames, 96), min(safe_steps, 22)),
+                (min(safe_num_frames, 64), min(safe_steps, 18)),
+                (
+                    min(safe_num_frames, max(settings.oom_safe_num_frames, 48)),
+                    min(safe_steps, max(settings.oom_safe_steps, 14)),
+                ),
+                (min(safe_num_frames, settings.oom_safe_num_frames), min(safe_steps, settings.oom_safe_steps)),
+                (settings.min_num_frames, settings.min_inference_steps),
+            ]
 
             attempts: list[tuple[int, int]] = []
             for candidate_frames, candidate_steps in frame_step_candidates:
@@ -422,6 +413,13 @@ class HunyuanVideoPipelineManager:
                         except Exception:  # pragma: no cover
                             pass
                     continue
+
+            if result is None and last_oom is not None:
+                LOGGER.info(
+                    "All frame/step profiles OOM at resolution %sx%s. Trying lower resolution.",
+                    input_image.size[0],
+                    input_image.size[1],
+                )
 
             if result is not None:
                 break

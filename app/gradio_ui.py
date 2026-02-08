@@ -71,7 +71,11 @@ def build_gradio_app() -> gr.Blocks:
     ensure_directories()
 
     with gr.Blocks(title="HunyuanVideo-I2V") as demo:
-        gr.Markdown("# HunyuanVideo-I2V\nGenerate 10-20 second videos from a starting image and text prompt.")
+        gr.Markdown(
+            "# HunyuanVideo-I2V\n"
+            "Generate videos from a starting image and text prompt.\n"
+            "Input image aspect ratio is preserved in output."
+        )
 
         with gr.Row():
             with gr.Column(scale=1):
@@ -81,12 +85,11 @@ def build_gradio_app() -> gr.Blocks:
                     lines=4,
                     placeholder="Describe motion, animation, and scene changes...",
                 )
-                frames_input = gr.Slider(
+                frames_input = gr.Number(
                     minimum=settings.min_num_frames,
-                    maximum=settings.max_num_frames,
                     value=settings.default_num_frames,
-                    step=8,
-                    label="Frames",
+                    precision=0,
+                    label="Frames (duration ~= frames / FPS)",
                 )
                 steps_input = gr.Slider(
                     minimum=settings.min_inference_steps,

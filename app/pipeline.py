@@ -228,6 +228,12 @@ class HunyuanVideoPipelineManager:
 
         source_image = image.convert("RGB")
         original_size = source_image.size
+        LOGGER.info(
+            "Source image received. size=%sx%s aspect_ratio=%.6f",
+            original_size[0],
+            original_size[1],
+            original_size[0] / max(original_size[1], 1),
+        )
 
         used_seed = seed if seed is not None else random.randint(0, 2**31 - 1)
         result = None
@@ -386,7 +392,12 @@ class HunyuanVideoPipelineManager:
         if not frames:
             raise RuntimeError("No frames generated.")
 
-        output_path = save_frames_to_mp4(frames=frames, fps=safe_fps)
+        output_path = save_frames_to_mp4(
+            frames=frames,
+            fps=safe_fps,
+            target_aspect_width=original_size[0],
+            target_aspect_height=original_size[1],
+        )
         LOGGER.info(
             "Pipeline generation completed. output=%s resolution=%sx%s generated_frames=%d requested_frames=%d used_steps=%d elapsed=%.2fs",
             output_path,

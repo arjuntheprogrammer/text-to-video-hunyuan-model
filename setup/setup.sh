@@ -37,9 +37,11 @@ GIT_USER_NAME="${GIT_USER_NAME:-Arjun Gupta}"
 GIT_USER_EMAIL="${GIT_USER_EMAIL:-arjuntheprogrammer@gmail.com}"
 INSTALL_VSCODE_EXTENSIONS="${INSTALL_VSCODE_EXTENSIONS:-1}"
 VSCODE_EXTENSIONS_FILE="${VSCODE_EXTENSIONS_FILE:-${REPO_DIR}/setup/vscode-extensions.txt}"
+LOG_DIR="${LOG_DIR:-${REPO_DIR}/logs}"
 
-APP_LOG="${APP_LOG:-/tmp/hunyuan_app.log}"
-APP_PID_FILE="${APP_PID_FILE:-/tmp/hunyuan_app.pid}"
+APP_LOG="${APP_LOG:-${LOG_DIR}/hunyuan_app.log}"
+APP_PID_FILE="${APP_PID_FILE:-${LOG_DIR}/hunyuan_app.pid}"
+HEALTH_STATUS_FILE="${HEALTH_STATUS_FILE:-${LOG_DIR}/hunyuan_health.json}"
 HEALTH_URL="${HEALTH_URL:-http://127.0.0.1:8000/health}"
 APP_START_TIMEOUT_SECONDS="${APP_START_TIMEOUT_SECONDS:-10800}" # 3 hours (first model download can be large)
 
@@ -54,6 +56,8 @@ if ! command -v apt-get >/dev/null 2>&1; then
   err "apt-get is required on this host."
   exit 1
 fi
+
+mkdir -p "${LOG_DIR}"
 
 # Determine whether elevated privileges are needed for package install.
 SUDO=""
@@ -304,9 +308,9 @@ log "App log: ${APP_LOG}"
 # Wait until health endpoint is ready or timeout/crash is detected.
 start_ts="$(date +%s)"
 while true; do
-  if curl -fsS "${HEALTH_URL}" >/tmp/hunyuan_health.json 2>/dev/null; then
+  if curl -fsS "${HEALTH_URL}" >"${HEALTH_STATUS_FILE}" 2>/dev/null; then
     log "Health endpoint is up: ${HEALTH_URL}"
-    cat /tmp/hunyuan_health.json
+    cat "${HEALTH_STATUS_FILE}"
     break
   fi
 

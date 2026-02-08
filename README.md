@@ -97,6 +97,7 @@ curl -O "http://localhost:8000/outputs/<filename>.mp4"
 ## Persistence
 - `./models` stores model/cache files
 - `./outputs` stores generated MP4 files
+- `./logs` stores runtime logs (`hunyuan_app.log`, health snapshot, pid file)
 
 Both persist across restarts in the same filesystem.
 

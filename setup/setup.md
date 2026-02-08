@@ -65,6 +65,7 @@ GIT_USER_NAME="Arjun Gupta" \
 GIT_USER_EMAIL="arjuntheprogrammer@gmail.com" \
 INSTALL_VSCODE_EXTENSIONS=1 \
 VSCODE_EXTENSIONS_FILE=./setup/vscode-extensions.txt \
+LOG_DIR=./logs \
 APP_START_TIMEOUT_SECONDS=10800 \
 RUN_GENERATE_TEST=0 \
 ENABLE_XFORMERS=0 \
@@ -79,8 +80,10 @@ INSTALL_VSCODE_EXTENSIONS=0 ./setup/setup.sh
 
 ## Output / logs
 
-- App log: `/tmp/hunyuan_app.log`
-- App pid: `/tmp/hunyuan_app.pid`
+- Log directory: `<repo>/logs`
+- App log: `<repo>/logs/hunyuan_app.log`
+- App pid: `<repo>/logs/hunyuan_app.pid`
+- Health snapshot: `<repo>/logs/hunyuan_health.json`
 - API: `http://127.0.0.1:8000`
 - Docs: `http://127.0.0.1:8000/docs`
 - Gradio: `http://127.0.0.1:7860`

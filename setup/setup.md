@@ -113,7 +113,7 @@ INSTALL_VSCODE_EXTENSIONS=0 ./setup/setup.sh
 
 - `requirements.txt` pins `transformers` to `<5.0.0` for model compatibility.
 - xFormers memory-efficient attention is opt-in via `ENABLE_XFORMERS=1`.
-- Generated output keeps the same aspect ratio as the input image.
+- Generated output follows the input image orientation/aspect directly during generation (no post-encode crop/pad bars).
 - Gradio uses a free-form `Frames` input so duration is not UI-capped (`duration = frames / fps`).
 
 ## Restart app manually

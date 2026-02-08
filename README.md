@@ -96,7 +96,7 @@ curl -O "http://localhost:8000/outputs/<filename>.mp4"
 - OOM safety defaults:
   - input images are auto-resized to `MAX_INPUT_IMAGE_SIDE` (default `1024`)
   - conservative fallback profile uses `OOM_SAFE_NUM_FRAMES=32` and `OOM_SAFE_STEPS=12`
-- Output video aspect ratio is aligned to the input image aspect ratio.
+- Output video is generated using the current input resolution/orientation (portrait inputs stay portrait) without post-encode crop/pad bars.
 - CPU offload defaults:
   - `ENABLE_SEQUENTIAL_CPU_OFFLOAD=0`
   - `ENABLE_MODEL_CPU_OFFLOAD=1`

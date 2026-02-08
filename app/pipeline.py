@@ -343,6 +343,8 @@ class HunyuanVideoPipelineManager:
                             result = self.pipe(
                                 image=input_image,
                                 prompt=prompt,
+                                height=input_image.size[1],
+                                width=input_image.size[0],
                                 num_frames=attempt_frames,
                                 guidance_scale=safe_guidance,
                                 num_inference_steps=attempt_steps,
@@ -392,12 +394,7 @@ class HunyuanVideoPipelineManager:
         if not frames:
             raise RuntimeError("No frames generated.")
 
-        output_path = save_frames_to_mp4(
-            frames=frames,
-            fps=safe_fps,
-            target_aspect_width=original_size[0],
-            target_aspect_height=original_size[1],
-        )
+        output_path = save_frames_to_mp4(frames=frames, fps=safe_fps)
         LOGGER.info(
             "Pipeline generation completed. output=%s resolution=%sx%s generated_frames=%d requested_frames=%d used_steps=%d elapsed=%.2fs",
             output_path,

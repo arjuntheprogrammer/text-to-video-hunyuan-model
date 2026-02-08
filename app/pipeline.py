@@ -77,7 +77,23 @@ class HunyuanVideoPipelineManager:
                     trust_remote_code=True,
                     token=token,
                 )
-            self.pipe.to(self.device)
+            using_cpu_offload = False
+            if self.device == "cuda":
+                if settings.enable_sequential_cpu_offload and hasattr(
+                    self.pipe, "enable_sequential_cpu_offload"
+                ):
+                    self.pipe.enable_sequential_cpu_offload()
+                    using_cpu_offload = True
+                    LOGGER.info("Sequential CPU offload enabled.")
+                elif settings.enable_model_cpu_offload and hasattr(
+                    self.pipe, "enable_model_cpu_offload"
+                ):
+                    self.pipe.enable_model_cpu_offload()
+                    using_cpu_offload = True
+                    LOGGER.info("Model CPU offload enabled.")
+
+            if not using_cpu_offload:
+                self.pipe.to(self.device)
 
             if hasattr(self.pipe, "enable_attention_slicing"):
                 self.pipe.enable_attention_slicing("auto")
@@ -128,6 +144,21 @@ class HunyuanVideoPipelineManager:
 
         return list(frames)
 
+    @staticmethod
+    def _resize_to_max_side(image: Image.Image, max_side: int) -> Image.Image:
+        if max_side <= 0:
+            return image
+        width, height = image.size
+        current_max_side = max(width, height)
+        if current_max_side <= max_side:
+            return image
+
+        scale = max_side / float(current_max_side)
+        # Keep dimensions divisible by 16 for more stable latent shape handling.
+        new_width = max(16, int((width * scale) // 16) * 16)
+        new_height = max(16, int((height * scale) // 16) * 16)
+        return image.resize((new_width, new_height), Image.Resampling.LANCZOS)
+
     def generate_video(
         self,
         image: Image.Image,
@@ -152,28 +183,154 @@ class HunyuanVideoPipelineManager:
         safe_fps = clamp_int(fps, settings.min_fps, settings.max_fps)
         safe_guidance = max(settings.min_guidance_scale, min(settings.max_guidance_scale, guidance_scale))
 
-        used_seed = seed if seed is not None else random.randint(0, 2**31 - 1)
-        generator = torch.Generator(device=self.device).manual_seed(used_seed)
-        LOGGER.info(
-            "Pipeline generation starting. seed=%s frames=%s steps=%s fps=%s guidance=%.2f",
-            used_seed,
-            safe_num_frames,
-            safe_steps,
-            safe_fps,
-            safe_guidance,
-        )
-        generation_start = time.perf_counter()
+        source_image = image.convert("RGB")
+        original_size = source_image.size
 
-        with self._lock:
-            with torch.inference_mode():
-                result = self.pipe(
-                    image=image.convert("RGB"),
-                    prompt=prompt,
-                    num_frames=safe_num_frames,
-                    guidance_scale=safe_guidance,
-                    num_inference_steps=safe_steps,
-                    generator=generator,
+        used_seed = seed if seed is not None else random.randint(0, 2**31 - 1)
+        result = None
+        used_attempt_frames = safe_num_frames
+        used_attempt_steps = safe_steps
+        used_attempt_resolution = source_image.size
+        generation_start = time.perf_counter()
+        last_oom: BaseException | None = None
+        attempted_profiles: list[str] = []
+
+        original_max_side = max(original_size)
+        if original_max_side > settings.max_input_image_side:
+            resolution_seed = [640, 512, 384]
+        else:
+            resolution_seed = [settings.max_input_image_side, 768, 640, 512, 384]
+        resolution_candidates = []
+        for side in resolution_seed:
+            resolved_side = min(original_max_side, max(384, side))
+            if resolved_side not in resolution_candidates:
+                resolution_candidates.append(resolved_side)
+
+        for resolution_index, max_side in enumerate(resolution_candidates, start=1):
+            input_image = self._resize_to_max_side(source_image, max_side)
+            if input_image.size != original_size:
+                LOGGER.info(
+                    "Resolution attempt %d/%d. original=%sx%s resized=%sx%s",
+                    resolution_index,
+                    len(resolution_candidates),
+                    original_size[0],
+                    original_size[1],
+                    input_image.size[0],
+                    input_image.size[1],
                 )
+            else:
+                LOGGER.info(
+                    "Resolution attempt %d/%d. using original size=%sx%s",
+                    resolution_index,
+                    len(resolution_candidates),
+                    input_image.size[0],
+                    input_image.size[1],
+                )
+
+            conservative_mode = (
+                input_image.size != original_size
+                or safe_num_frames > settings.oom_safe_num_frames
+                or safe_steps > settings.oom_safe_steps
+            )
+            if conservative_mode:
+                preferred_frames = min(safe_num_frames, settings.oom_safe_num_frames)
+                preferred_steps = min(safe_steps, settings.oom_safe_steps)
+                if input_image.size != original_size:
+                    preferred_frames = min(preferred_frames, 16)
+                    preferred_steps = min(preferred_steps, 10)
+                # Use stricter profile as resolution gets smaller to avoid repeated OOM cascades.
+                if max(input_image.size) <= 640:
+                    preferred_frames = min(preferred_frames, 24)
+                    preferred_steps = min(preferred_steps, 10)
+                if max(input_image.size) <= 512:
+                    preferred_frames = min(preferred_frames, settings.min_num_frames)
+                    preferred_steps = min(preferred_steps, settings.min_inference_steps)
+                frame_step_candidates = [
+                    (preferred_frames, preferred_steps),
+                    (min(preferred_frames, 24), min(preferred_steps, 10)),
+                    (settings.min_num_frames, settings.min_inference_steps),
+                ]
+            else:
+                frame_step_candidates = [
+                    (safe_num_frames, safe_steps),
+                    (min(safe_num_frames, 128), min(safe_steps, 24)),
+                    (min(safe_num_frames, 96), min(safe_steps, 22)),
+                    (min(safe_num_frames, 64), min(safe_steps, 18)),
+                    (min(safe_num_frames, 48), min(safe_steps, 14)),
+                    (settings.min_num_frames, settings.min_inference_steps),
+                ]
+
+            attempts: list[tuple[int, int]] = []
+            for candidate_frames, candidate_steps in frame_step_candidates:
+                candidate = (
+                    clamp_int(candidate_frames, settings.min_num_frames, settings.max_num_frames),
+                    clamp_int(candidate_steps, settings.min_inference_steps, settings.max_inference_steps),
+                )
+                if candidate not in attempts:
+                    attempts.append(candidate)
+
+            for attempt_index, (attempt_frames, attempt_steps) in enumerate(attempts, start=1):
+                attempted_profiles.append(
+                    f"{input_image.size[0]}x{input_image.size[1]}:{attempt_frames}f/{attempt_steps}s"
+                )
+                LOGGER.info(
+                    "Pipeline generation attempt %d/%d at %sx%s. seed=%s frames=%s steps=%s fps=%s guidance=%.2f",
+                    attempt_index,
+                    len(attempts),
+                    input_image.size[0],
+                    input_image.size[1],
+                    used_seed,
+                    attempt_frames,
+                    attempt_steps,
+                    safe_fps,
+                    safe_guidance,
+                )
+                try:
+                    if self.device == "cuda":
+                        torch.cuda.empty_cache()
+                    with self._lock:
+                        with torch.inference_mode():
+                            generator = torch.Generator(device=self.device).manual_seed(used_seed)
+                            result = self.pipe(
+                                image=input_image,
+                                prompt=prompt,
+                                num_frames=attempt_frames,
+                                guidance_scale=safe_guidance,
+                                num_inference_steps=attempt_steps,
+                                generator=generator,
+                            )
+                    used_attempt_frames = attempt_frames
+                    used_attempt_steps = attempt_steps
+                    used_attempt_resolution = input_image.size
+                    break
+                except torch.OutOfMemoryError as exc:
+                    last_oom = exc
+                    LOGGER.warning(
+                        "OOM at %sx%s on attempt %d/%d (frames=%s, steps=%s). Retrying with lower settings.",
+                        input_image.size[0],
+                        input_image.size[1],
+                        attempt_index,
+                        len(attempts),
+                        attempt_frames,
+                        attempt_steps,
+                    )
+                    if self.device == "cuda":
+                        torch.cuda.empty_cache()
+                        try:
+                            torch.cuda.ipc_collect()
+                        except Exception:  # pragma: no cover
+                            pass
+                    continue
+
+            if result is not None:
+                break
+
+        if result is None:
+            attempted = ", ".join(attempted_profiles)
+            raise RuntimeError(
+                "Generation failed due to GPU memory limits after retries. "
+                f"Tried profiles: {attempted}. Last error: {last_oom}"
+            )
 
         frames = self._extract_frames(result)
         if not frames:
@@ -181,12 +338,16 @@ class HunyuanVideoPipelineManager:
 
         output_path = save_frames_to_mp4(frames=frames, fps=safe_fps)
         LOGGER.info(
-            "Pipeline generation completed. output=%s frames=%d elapsed=%.2fs",
+            "Pipeline generation completed. output=%s resolution=%sx%s generated_frames=%d requested_frames=%d used_steps=%d elapsed=%.2fs",
             output_path,
+            used_attempt_resolution[0],
+            used_attempt_resolution[1],
             len(frames),
+            used_attempt_frames,
+            used_attempt_steps,
             time.perf_counter() - generation_start,
         )
-        return output_path, used_seed, safe_num_frames, safe_fps
+        return output_path, used_seed, used_attempt_frames, safe_fps
 
 
 _PIPELINE_MANAGER = HunyuanVideoPipelineManager()

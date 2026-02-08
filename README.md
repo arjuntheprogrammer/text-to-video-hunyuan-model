@@ -93,6 +93,12 @@ curl -O "http://localhost:8000/outputs/<filename>.mp4"
 - `transformers` is pinned to `<5.0.0` for model compatibility.
 - xFormers attention is opt-in. Set `ENABLE_XFORMERS=1` in `.env` to enable.
 - Setup pins all model/cache paths to `./models` (`HF_HOME`, `HF_HUB_CACHE`, `TORCH_HOME`).
+- OOM safety defaults:
+  - input images are auto-resized to `MAX_INPUT_IMAGE_SIDE` (default `1024`)
+  - conservative fallback profile uses `OOM_SAFE_NUM_FRAMES=32` and `OOM_SAFE_STEPS=12`
+- CPU offload defaults:
+  - `ENABLE_SEQUENTIAL_CPU_OFFLOAD=1`
+  - `ENABLE_MODEL_CPU_OFFLOAD=0`
 - First startup may take a long time due to model download.
 
 ## Persistence

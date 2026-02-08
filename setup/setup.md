@@ -30,6 +30,12 @@ The script is idempotent and non-interactive:
    - `HF_HOME`, `HF_HUB_CACHE`, `TORCH_HOME` -> `<repo>/models`
    - `OUTPUT_DIR` -> `<repo>/outputs`
    - `LOG_DIR`, `APP_LOG` -> `<repo>/logs/...`
+   - OOM safety defaults:
+     - `MAX_INPUT_IMAGE_SIDE=1024`
+     - `OOM_SAFE_NUM_FRAMES=32`
+     - `OOM_SAFE_STEPS=12`
+     - `ENABLE_SEQUENTIAL_CPU_OFFLOAD=1`
+     - `ENABLE_MODEL_CPU_OFFLOAD=0`
    - Removes deprecated `TRANSFORMERS_CACHE` entry if present
 11. Starts app in background (`python run.py` in Conda env).
 12. Waits for `http://127.0.0.1:8000/health` to become available.
@@ -71,6 +77,11 @@ LOG_DIR=./logs \
 APP_START_TIMEOUT_SECONDS=10800 \
 RUN_GENERATE_TEST=0 \
 TEST_IMAGE_PATH=./setup/test_input_512.png \
+MAX_INPUT_IMAGE_SIDE=1024 \
+OOM_SAFE_NUM_FRAMES=32 \
+OOM_SAFE_STEPS=12 \
+ENABLE_SEQUENTIAL_CPU_OFFLOAD=1 \
+ENABLE_MODEL_CPU_OFFLOAD=0 \
 ENABLE_XFORMERS=0 \
 ./setup/setup.sh
 ```

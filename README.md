@@ -1,50 +1,73 @@
 # HunyuanVideo Production Starter Project
 
-End-to-end image-to-video generation service powered by the open-source `hunyuanvideo-community/HunyuanVideo-I2V` model. The project includes:
+End-to-end image-to-video generation service powered by `hunyuanvideo-community/HunyuanVideo-I2V`.
+
+Includes:
 - FastAPI REST API
-- Public Gradio UI
-- Dockerized deployment for Ubuntu 22.04 with NVIDIA GPU
+- Gradio UI
+- Conda-native runtime (recommended for remote GPU containers)
+- Optional Docker runtime (only when host Docker access is available)
 
-## Requirements
-- Ubuntu 22.04 host
-- NVIDIA GPU (L40s recommended)
-- NVIDIA driver installed
-- NVIDIA Container Toolkit installed
-- Docker Engine + Docker Compose v2
+## Runtime Modes
 
-## Hugging Face Token Setup
-Create your local token file before startup:
+### 1) Conda-native (recommended)
+
+Use this when you do not have host-level Docker access (common on rented GPU/container instances).
+
+```bash
+cd /home/ubuntu/text-to-video-hunyuan-model
+chmod +x setup/setup.sh
+HF_TOKEN=hf_xxx ./setup/setup.sh
+```
+
+If `.env` already has a valid `HF_TOKEN`, this also works:
+
+```bash
+cd /home/ubuntu/text-to-video-hunyuan-model
+./setup/setup.sh
+```
+
+What it does:
+- Installs missing OS packages
+- Installs/configures Conda (`/opt/conda`)
+- Creates env `hunyuanvideo`
+- Installs Python dependencies
+- Configures `.env` paths
+- Starts `python run.py`
+- Waits for `/health`
+
+Optional full E2E test during setup:
+
+```bash
+RUN_GENERATE_TEST=1 ./setup/setup.sh
+```
+
+### 2) Docker (optional, host access required)
+
+Only use this if you control the host daemon and NVIDIA container runtime.
 
 ```bash
 cp .env_template .env
-# Edit .env and set HF_TOKEN=your_huggingface_token_here
-```
-
-## NVIDIA Container Toolkit Setup
-Install toolkit and restart Docker:
-
-```bash
-distribution=$(. /etc/os-release;echo $ID$VERSION_ID)
-curl -fsSL https://nvidia.github.io/libnvidia-container/gpgkey | sudo gpg --dearmor -o /usr/share/keyrings/nvidia-container-toolkit-keyring.gpg
-curl -s -L https://nvidia.github.io/libnvidia-container/$distribution/libnvidia-container.list \
-  | sed 's#deb https://#deb [signed-by=/usr/share/keyrings/nvidia-container-toolkit-keyring.gpg] https://#g' \
-  | sudo tee /etc/apt/sources.list.d/nvidia-container-toolkit.list
-sudo apt-get update
-sudo apt-get install -y nvidia-container-toolkit
-sudo nvidia-ctk runtime configure --runtime=docker
-sudo systemctl restart docker
-```
-
-## Run
-
-```bash
+# set HF_TOKEN in .env
 docker compose up --build
 ```
+
+## Requirements
+
+### Conda-native
+- Linux x86_64
+- NVIDIA GPU + working driver (`nvidia-smi`)
+- Internet access for model/dependency download
+- Hugging Face token with access to the model
+
+### Docker mode
+- Ubuntu host with Docker Engine + Compose v2
+- NVIDIA Container Toolkit configured for Docker
 
 ## URLs
 - API: `http://localhost:8000`
 - Swagger UI: `http://localhost:8000/docs`
-- Gradio UI (public bind): `http://localhost:7860`
+- Gradio UI: `http://localhost:7860`
 
 ## API Example
 
@@ -59,27 +82,27 @@ curl -X POST "http://localhost:8000/generate" \
   -F "seed=42"
 ```
 
-Download generated file from the returned `output_url`:
+Download generated file from `output_url`:
 
 ```bash
 curl -O "http://localhost:8000/outputs/<filename>.mp4"
 ```
 
+## Important Runtime Notes
+
+- `transformers` is pinned to `<5.0.0` for model compatibility.
+- xFormers attention is opt-in. Set `ENABLE_XFORMERS=1` in `.env` to enable.
+- First startup may take a long time due to model download.
+
 ## Persistence
-- `./models` stores Hugging Face model cache and weights.
-- `./outputs` stores generated MP4 files.
+- `./models` stores model/cache files
+- `./outputs` stores generated MP4 files
 
-Both are mounted into the container and persist across restarts.
+Both persist across restarts in the same filesystem.
 
-## L40s Performance Notes
-- FP16 inference on CUDA.
-- TF32 enabled for faster matrix operations.
-- Attention/tiling optimizations enabled.
-- Conservative defaults: 160 frames, 16 FPS, 30 steps.
-- Max frame cap: 320 frames (~20 seconds at 16 FPS).
+## Setup Folder
 
-## Optional Model Pre-download
-
-```bash
-python scripts/download_model.py --cache-dir ./models
-```
+See:
+- `setup/setup.sh` for full automated setup
+- `setup/setup.md` for usage, overrides, and troubleshooting
+- `setup/vscode-extensions.txt` for auto-install extension list

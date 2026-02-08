@@ -1,8 +1,8 @@
 # HunyuanVideo Conda Setup (No Docker)
 
-This setup is for running `text-to-video-hunyuan-model` directly on the remote GPU instance using Conda.
+This setup runs `text-to-video-hunyuan-model` directly on the remote GPU instance using Conda.
 
-Docker is intentionally not used.
+Docker is intentionally not used in this flow.
 
 ## Files
 
@@ -29,12 +29,13 @@ The script is idempotent and non-interactive:
 10. Sets cache/runtime paths in `.env` to repo-local folders:
    - `HF_HOME`, `HF_HUB_CACHE`, `TRANSFORMERS_CACHE`, `TORCH_HOME` -> `<repo>/models`
    - `OUTPUT_DIR` -> `<repo>/outputs`
-11. Starts app in background (`python run.py`).
+11. Starts app in background (`python run.py` in Conda env).
 12. Waits for `http://127.0.0.1:8000/health` to become available.
 
 Optional:
 
-- If `RUN_GENERATE_TEST=1`, runs one real `/generate` request and downloads output MP4.
+- If `RUN_GENERATE_TEST=1`, generates a 512x512 RGB PNG via `ffmpeg`, runs one real `/generate` request, and downloads output MP4.
+- `ENABLE_XFORMERS` defaults to disabled unless explicitly set (`1/true/yes/on`).
 
 ## Run
 
@@ -65,6 +66,7 @@ INSTALL_VSCODE_EXTENSIONS=1 \
 VSCODE_EXTENSIONS_FILE=./setup/vscode-extensions.txt \
 APP_START_TIMEOUT_SECONDS=10800 \
 RUN_GENERATE_TEST=0 \
+ENABLE_XFORMERS=0 \
 ./setup/setup.sh
 ```
 
@@ -81,6 +83,11 @@ INSTALL_VSCODE_EXTENSIONS=0 ./setup/setup.sh
 - API: `http://127.0.0.1:8000`
 - Docs: `http://127.0.0.1:8000/docs`
 - Gradio: `http://127.0.0.1:7860`
+
+## Runtime compatibility notes
+
+- `requirements.txt` pins `transformers` to `<5.0.0` for model compatibility.
+- xFormers memory-efficient attention is opt-in via `ENABLE_XFORMERS=1`.
 
 ## Restart app manually
 

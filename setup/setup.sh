@@ -334,10 +334,8 @@ if [[ "${RUN_GENERATE_TEST:-0}" == "1" ]]; then
   log "RUN_GENERATE_TEST=1: running a real generate test."
   test_img="/tmp/hunyuan_test_input.png"
   test_mp4="/tmp/hunyuan_test_output.mp4"
-  cat > /tmp/hunyuan_test_input.b64 <<'B64EOF'
-iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO5xN1sAAAAASUVORK5CYII=
-B64EOF
-  base64 -d /tmp/hunyuan_test_input.b64 > "${test_img}"
+  # Use ffmpeg to generate a valid RGB test image.
+  ffmpeg -loglevel error -f lavfi -i color=c=blue:s=512x512:d=1 -frames:v 1 -y "${test_img}"
 
   gen_json="$(curl -fsS -X POST 'http://127.0.0.1:8000/generate' \
     -F "image=@${test_img}" \

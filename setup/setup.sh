@@ -362,10 +362,16 @@ done
 # Optional: run one real generation request to verify end-to-end inference.
 if [[ "${RUN_GENERATE_TEST:-0}" == "1" ]]; then
   log "RUN_GENERATE_TEST=1: running a real generate test."
-  test_img="/tmp/hunyuan_test_input.png"
+  test_img="${TEST_IMAGE_PATH:-${REPO_DIR}/setup/test_input_512.png}"
   test_mp4="/tmp/hunyuan_test_output.mp4"
-  # Use ffmpeg to generate a valid RGB test image.
-  ffmpeg -loglevel error -f lavfi -i color=c=blue:s=512x512:d=1 -frames:v 1 -y "${test_img}"
+  if [[ ! -s "${test_img}" ]]; then
+    log "Creating sample test image: ${test_img}"
+    mkdir -p "$(dirname "${test_img}")"
+    # Use ffmpeg to generate a valid RGB test image.
+    ffmpeg -loglevel error -f lavfi -i color=c=blue:s=512x512:d=1 -frames:v 1 -y "${test_img}"
+  else
+    log "Using existing sample test image: ${test_img}"
+  fi
 
   gen_json="$(curl -fsS -X POST 'http://127.0.0.1:8000/generate' \
     -F "image=@${test_img}" \

@@ -37,6 +37,7 @@ The script is idempotent and non-interactive:
 Optional:
 
 - If `RUN_GENERATE_TEST=1`, generates a 512x512 RGB PNG via `ffmpeg`, runs one real `/generate` request, and downloads output MP4.
+  - Default test image path: `<repo>/setup/test_input_512.png` (reused if it already exists).
 - `ENABLE_XFORMERS` defaults to disabled unless explicitly set (`1/true/yes/on`).
 
 ## Run
@@ -69,6 +70,7 @@ VSCODE_EXTENSIONS_FILE=./setup/vscode-extensions.txt \
 LOG_DIR=./logs \
 APP_START_TIMEOUT_SECONDS=10800 \
 RUN_GENERATE_TEST=0 \
+TEST_IMAGE_PATH=./setup/test_input_512.png \
 ENABLE_XFORMERS=0 \
 ./setup/setup.sh
 ```

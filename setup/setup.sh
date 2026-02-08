@@ -35,6 +35,8 @@ CONDA_BIN="${CONDA_DIR}/bin/conda"
 ENV_NAME="${ENV_NAME:-hunyuanvideo}"
 GIT_USER_NAME="${GIT_USER_NAME:-Arjun Gupta}"
 GIT_USER_EMAIL="${GIT_USER_EMAIL:-arjuntheprogrammer@gmail.com}"
+INSTALL_VSCODE_EXTENSIONS="${INSTALL_VSCODE_EXTENSIONS:-1}"
+VSCODE_EXTENSIONS_FILE="${VSCODE_EXTENSIONS_FILE:-${REPO_DIR}/setup/vscode-extensions.txt}"
 
 APP_LOG="${APP_LOG:-/tmp/hunyuan_app.log}"
 APP_PID_FILE="${APP_PID_FILE:-/tmp/hunyuan_app.pid}"
@@ -86,6 +88,68 @@ fi
 git config --global user.name "${GIT_USER_NAME}"
 git config --global user.email "${GIT_USER_EMAIL}"
 log "Git identity set: $(git config --global user.name) <$(git config --global user.email)>"
+
+# Resolve a usable VS Code CLI (Remote-SSH/remote-cli or local code).
+find_vscode_code_cli() {
+  if command -v code >/dev/null 2>&1; then
+    command -v code
+    return 0
+  fi
+
+  local candidates=()
+  local user_home="${HOME:-}"
+  local sudo_home=""
+  local login_home=""
+
+  if [[ -n "${SUDO_USER:-}" ]]; then
+    sudo_home="$(getent passwd "${SUDO_USER}" 2>/dev/null | cut -d: -f6 || true)"
+  fi
+  if command -v logname >/dev/null 2>&1; then
+    login_home="$(getent passwd "$(logname 2>/dev/null || true)" 2>/dev/null | cut -d: -f6 || true)"
+  fi
+
+  for h in "${user_home}" "${sudo_home}" "${login_home}" "/home/ubuntu" "/root"; do
+    [[ -z "${h}" ]] && continue
+    if compgen -G "${h}/.vscode-server/cli/servers/Stable-*/server/bin/remote-cli/code" >/dev/null; then
+      while IFS= read -r p; do
+        candidates+=("${p}")
+      done < <(ls -1dt "${h}"/.vscode-server/cli/servers/Stable-*/server/bin/remote-cli/code 2>/dev/null || true)
+    fi
+  done
+
+  if [[ "${#candidates[@]}" -gt 0 ]]; then
+    printf '%s\n' "${candidates[0]}"
+    return 0
+  fi
+
+  return 1
+}
+
+# Install VS Code extensions listed in setup/vscode-extensions.txt when requested.
+if [[ "${INSTALL_VSCODE_EXTENSIONS}" == "1" ]]; then
+  if [[ -f "${VSCODE_EXTENSIONS_FILE}" ]]; then
+    if vscode_code_cli="$(find_vscode_code_cli)"; then
+      log "Installing VS Code extensions via: ${vscode_code_cli}"
+      while IFS= read -r ext || [[ -n "${ext}" ]]; do
+        # Skip comments and empty lines.
+        [[ -z "${ext}" ]] && continue
+        [[ "${ext}" =~ ^# ]] && continue
+        if "${vscode_code_cli}" --install-extension "${ext}" --force >/dev/null 2>&1; then
+          log "VS Code extension ensured: ${ext}"
+        else
+          err "Failed to install VS Code extension: ${ext}"
+        fi
+      done < "${VSCODE_EXTENSIONS_FILE}"
+    else
+      log "VS Code CLI not found. Skipping extension install."
+      log "Connect once with VS Code Remote-SSH and rerun to install extensions automatically."
+    fi
+  else
+    log "No extension list file found at ${VSCODE_EXTENSIONS_FILE}; skipping VS Code extension install."
+  fi
+else
+  log "INSTALL_VSCODE_EXTENSIONS=${INSTALL_VSCODE_EXTENSIONS}; skipping VS Code extension install."
+fi
 
 # Install Miniconda only if conda is not already available at target location.
 if [[ ! -x "${CONDA_BIN}" ]]; then

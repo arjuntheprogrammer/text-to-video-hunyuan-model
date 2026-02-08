@@ -7,6 +7,7 @@ Docker is intentionally not used.
 ## Files
 
 - Script: `setup/setup.sh`
+- VS Code extension list: `setup/vscode-extensions.txt`
 - Repo expected by default at: parent of this script (`<repo>/setup/setup.sh` -> repo root)
 
 ## What `setup.sh` does
@@ -18,17 +19,18 @@ The script is idempotent and non-interactive:
 2. Sets global git identity (default):
    - `user.name=Arjun Gupta`
    - `user.email=arjuntheprogrammer@gmail.com`
-3. Installs Miniconda to `/opt/conda` if not present.
-4. Accepts Conda channel ToS non-interactively.
-5. Initializes Conda for `bash` and `zsh`.
-6. Creates Conda env `hunyuanvideo` if missing (`python=3.10`, `pip`, `ffmpeg`).
-7. Installs Python dependencies from `requirements.txt`.
-8. Ensures `.env` exists and has a valid `HF_TOKEN`.
-9. Sets cache/runtime paths in `.env` to repo-local folders:
+3. Installs VS Code extensions from `setup/vscode-extensions.txt` (if VS Code remote CLI is available).
+4. Installs Miniconda to `/opt/conda` if not present.
+5. Accepts Conda channel ToS non-interactively.
+6. Initializes Conda for `bash` and `zsh`.
+7. Creates Conda env `hunyuanvideo` if missing (`python=3.10`, `pip`, `ffmpeg`).
+8. Installs Python dependencies from `requirements.txt`.
+9. Ensures `.env` exists and has a valid `HF_TOKEN`.
+10. Sets cache/runtime paths in `.env` to repo-local folders:
    - `HF_HOME`, `HF_HUB_CACHE`, `TRANSFORMERS_CACHE`, `TORCH_HOME` -> `<repo>/models`
    - `OUTPUT_DIR` -> `<repo>/outputs`
-10. Starts app in background (`python run.py`).
-11. Waits for `http://127.0.0.1:8000/health` to become available.
+11. Starts app in background (`python run.py`).
+12. Waits for `http://127.0.0.1:8000/health` to become available.
 
 Optional:
 
@@ -59,9 +61,17 @@ ENV_NAME=hunyuanvideo \
 CONDA_DIR=/opt/conda \
 GIT_USER_NAME="Arjun Gupta" \
 GIT_USER_EMAIL="arjuntheprogrammer@gmail.com" \
+INSTALL_VSCODE_EXTENSIONS=1 \
+VSCODE_EXTENSIONS_FILE=./setup/vscode-extensions.txt \
 APP_START_TIMEOUT_SECONDS=10800 \
 RUN_GENERATE_TEST=0 \
 ./setup/setup.sh
+```
+
+To skip VS Code extension install:
+
+```bash
+INSTALL_VSCODE_EXTENSIONS=0 ./setup/setup.sh
 ```
 
 ## Output / logs

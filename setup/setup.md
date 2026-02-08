@@ -115,6 +115,10 @@ INSTALL_VSCODE_EXTENSIONS=0 ./setup/setup.sh
 - xFormers memory-efficient attention is opt-in via `ENABLE_XFORMERS=1`.
 - Generated output follows the input image orientation/aspect directly during generation (no post-encode crop/pad bars).
 - Gradio uses a free-form `Frames` input so duration is not UI-capped (`duration = frames / fps`).
+- Prompt enhancement is enabled by default:
+  - appends realism instructions to user prompt
+  - applies negative prompt terms to reduce flicker/fade/morph artifacts
+  - optional overrides: `DEFAULT_PROMPT_SUFFIX`, `DEFAULT_NEGATIVE_PROMPT`
 
 ## Restart app manually
 

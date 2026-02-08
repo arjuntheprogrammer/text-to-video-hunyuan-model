@@ -46,6 +46,22 @@ class Settings:
         self.max_input_image_side = int(os.getenv("MAX_INPUT_IMAGE_SIDE", "1024"))
         self.oom_safe_num_frames = int(os.getenv("OOM_SAFE_NUM_FRAMES", "32"))
         self.oom_safe_steps = int(os.getenv("OOM_SAFE_STEPS", "12"))
+        self.default_prompt_suffix = os.getenv(
+            "DEFAULT_PROMPT_SUFFIX",
+            (
+                "Keep motion physically plausible and temporally consistent with realistic inertia and continuity. "
+                "Preserve subject identity, body proportions, and scene geometry. "
+                "Use natural lighting, realistic textures, stable exposure, and cinematic camera behavior."
+            ),
+        ).strip()
+        self.default_negative_prompt = os.getenv(
+            "DEFAULT_NEGATIVE_PROMPT",
+            (
+                "flicker, frame-to-frame inconsistency, random fade, ghosting, jitter, morphing face, "
+                "deformed anatomy, warped limbs, duplicate body parts, abrupt camera jumps, unrealistic motion, "
+                "cartoon look, over-smoothing, over-sharpening, artifacts, text, watermark, logo"
+            ),
+        ).strip()
         self.enable_sequential_cpu_offload = os.getenv("ENABLE_SEQUENTIAL_CPU_OFFLOAD", "0").strip().lower() in {
             "1",
             "true",

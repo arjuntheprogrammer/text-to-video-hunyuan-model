@@ -1,3 +1,4 @@
+import inspect
 import logging
 import random
 import threading
@@ -21,6 +22,7 @@ class HunyuanVideoPipelineManager:
         self.dtype = torch.float16 if self.device == "cuda" else torch.float32
         self._lock = threading.Lock()
         self.pipe: Any | None = None
+        self._pipe_call_arg_names: set[str] = set()
         self.model_loaded = False
         self.load_error: str | None = None
 
@@ -77,6 +79,10 @@ class HunyuanVideoPipelineManager:
                     trust_remote_code=True,
                     token=token,
                 )
+            try:
+                self._pipe_call_arg_names = set(inspect.signature(self.pipe.__call__).parameters.keys())
+            except Exception:  # pragma: no cover
+                self._pipe_call_arg_names = set()
             using_cpu_offload = False
             if self.device == "cuda":
                 if settings.enable_sequential_cpu_offload and hasattr(
@@ -124,6 +130,17 @@ class HunyuanVideoPipelineManager:
             self.model_loaded = False
             self.load_error = str(exc)
             LOGGER.exception("Failed to load model pipeline: %s", exc)
+
+    def _build_effective_prompts(self, user_prompt: str) -> tuple[str, str | None]:
+        clean_prompt = user_prompt.strip()
+        suffix = settings.default_prompt_suffix.strip()
+        if suffix and suffix.lower() not in clean_prompt.lower():
+            effective_prompt = f"{clean_prompt}\n\n{suffix}"
+        else:
+            effective_prompt = clean_prompt
+
+        negative_prompt = settings.default_negative_prompt.strip() or None
+        return effective_prompt, negative_prompt
 
     @staticmethod
     def _extract_frames(result: Any) -> list[Any]:
@@ -232,6 +249,13 @@ class HunyuanVideoPipelineManager:
         )
         safe_fps = clamp_int(fps, settings.min_fps, settings.max_fps)
         safe_guidance = max(settings.min_guidance_scale, min(settings.max_guidance_scale, guidance_scale))
+        effective_prompt, negative_prompt = self._build_effective_prompts(prompt)
+        LOGGER.info(
+            "Prompt enhancement applied. user_prompt_len=%d effective_prompt_len=%d negative_prompt_len=%d",
+            len(prompt),
+            len(effective_prompt),
+            len(negative_prompt or ""),
+        )
 
         source_image = image.convert("RGB")
         original_size = source_image.size
@@ -346,23 +370,36 @@ class HunyuanVideoPipelineManager:
                     with self._lock:
                         with torch.inference_mode():
                             generator = torch.Generator(device=self.device).manual_seed(used_seed)
-                            result = self.pipe(
-                                image=input_image,
-                                prompt=prompt,
-                                height=input_image.size[1],
-                                width=input_image.size[0],
-                                num_frames=attempt_frames,
-                                guidance_scale=safe_guidance,
-                                num_inference_steps=attempt_steps,
-                                generator=generator,
-                                callback_on_step_end=self._make_step_callback(
+                            pipe_kwargs: dict[str, Any] = {
+                                "image": input_image,
+                                "prompt": effective_prompt,
+                                "height": input_image.size[1],
+                                "width": input_image.size[0],
+                                "num_frames": attempt_frames,
+                                "guidance_scale": safe_guidance,
+                                "num_inference_steps": attempt_steps,
+                                "generator": generator,
+                                "callback_on_step_end": self._make_step_callback(
                                     total_steps=attempt_steps,
                                     resolution=input_image.size,
                                     num_frames=attempt_frames,
                                     num_inference_steps=attempt_steps,
                                 ),
-                                callback_on_step_end_tensor_inputs=["latents"],
-                            )
+                                "callback_on_step_end_tensor_inputs": ["latents"],
+                            }
+                            if negative_prompt:
+                                pipe_kwargs["negative_prompt"] = negative_prompt
+                                pipe_kwargs["negative_prompt_2"] = negative_prompt
+                            pipe_kwargs["prompt_2"] = effective_prompt
+
+                            if self._pipe_call_arg_names:
+                                pipe_kwargs = {
+                                    key: value
+                                    for key, value in pipe_kwargs.items()
+                                    if key in self._pipe_call_arg_names
+                                }
+
+                            result = self.pipe(**pipe_kwargs)
                     used_attempt_frames = attempt_frames
                     used_attempt_steps = attempt_steps
                     used_attempt_resolution = input_image.size

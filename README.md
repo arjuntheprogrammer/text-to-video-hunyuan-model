@@ -97,6 +97,10 @@ curl -O "http://localhost:8000/outputs/<filename>.mp4"
   - input images are auto-resized to `MAX_INPUT_IMAGE_SIDE` (default `1024`)
   - conservative fallback profile uses `OOM_SAFE_NUM_FRAMES=32` and `OOM_SAFE_STEPS=12`
 - Output video is generated using the current input resolution/orientation (portrait inputs stay portrait) without post-encode crop/pad bars.
+- Prompt enhancement defaults:
+  - appends an internal realism suffix to the user prompt
+  - applies a default negative prompt to reduce flicker/fade/morph artifacts
+  - can be overridden via `.env` using `DEFAULT_PROMPT_SUFFIX` and `DEFAULT_NEGATIVE_PROMPT`
 - CPU offload defaults:
   - `ENABLE_SEQUENTIAL_CPU_OFFLOAD=0`
   - `ENABLE_MODEL_CPU_OFFLOAD=1`

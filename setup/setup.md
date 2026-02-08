@@ -15,17 +15,20 @@ The script is idempotent and non-interactive:
 
 1. Checks and installs required OS dependencies if missing:
    - `wget`, `curl`, `ca-certificates`, `bzip2`, `zsh`, `ffmpeg`, `git`, `procps`, `libgl1`, `libglib2.0-0`
-2. Installs Miniconda to `/opt/conda` if not present.
-3. Accepts Conda channel ToS non-interactively.
-4. Initializes Conda for `bash` and `zsh`.
-5. Creates Conda env `hunyuanvideo` if missing (`python=3.10`, `pip`, `ffmpeg`).
-6. Installs Python dependencies from `requirements.txt`.
-7. Ensures `.env` exists and has a valid `HF_TOKEN`.
-8. Sets cache/runtime paths in `.env` to repo-local folders:
+2. Sets global git identity (default):
+   - `user.name=Arjun Gupta`
+   - `user.email=arjuntheprogrammer@gmail.com`
+3. Installs Miniconda to `/opt/conda` if not present.
+4. Accepts Conda channel ToS non-interactively.
+5. Initializes Conda for `bash` and `zsh`.
+6. Creates Conda env `hunyuanvideo` if missing (`python=3.10`, `pip`, `ffmpeg`).
+7. Installs Python dependencies from `requirements.txt`.
+8. Ensures `.env` exists and has a valid `HF_TOKEN`.
+9. Sets cache/runtime paths in `.env` to repo-local folders:
    - `HF_HOME`, `HF_HUB_CACHE`, `TRANSFORMERS_CACHE`, `TORCH_HOME` -> `<repo>/models`
    - `OUTPUT_DIR` -> `<repo>/outputs`
-9. Starts app in background (`python run.py`).
-10. Waits for `http://127.0.0.1:8000/health` to become available.
+10. Starts app in background (`python run.py`).
+11. Waits for `http://127.0.0.1:8000/health` to become available.
 
 Optional:
 
@@ -54,6 +57,8 @@ cd /home/ubuntu/text-to-video-hunyuan-model
 REPO_DIR=/path/to/text-to-video-hunyuan-model \
 ENV_NAME=hunyuanvideo \
 CONDA_DIR=/opt/conda \
+GIT_USER_NAME="Arjun Gupta" \
+GIT_USER_EMAIL="arjuntheprogrammer@gmail.com" \
 APP_START_TIMEOUT_SECONDS=10800 \
 RUN_GENERATE_TEST=0 \
 ./setup/setup.sh

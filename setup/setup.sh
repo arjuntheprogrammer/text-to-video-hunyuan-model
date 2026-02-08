@@ -33,6 +33,8 @@ fi
 CONDA_DIR="${CONDA_DIR:-/opt/conda}"
 CONDA_BIN="${CONDA_DIR}/bin/conda"
 ENV_NAME="${ENV_NAME:-hunyuanvideo}"
+GIT_USER_NAME="${GIT_USER_NAME:-Arjun Gupta}"
+GIT_USER_EMAIL="${GIT_USER_EMAIL:-arjuntheprogrammer@gmail.com}"
 
 APP_LOG="${APP_LOG:-/tmp/hunyuan_app.log}"
 APP_PID_FILE="${APP_PID_FILE:-/tmp/hunyuan_app.pid}"
@@ -79,6 +81,11 @@ if [[ "${need_install}" -eq 1 ]]; then
 else
   log "OS packages already present; skipping apt install."
 fi
+
+# Ensure global git identity is configured for commits on fresh instances.
+git config --global user.name "${GIT_USER_NAME}"
+git config --global user.email "${GIT_USER_EMAIL}"
+log "Git identity set: $(git config --global user.name) <$(git config --global user.email)>"
 
 # Install Miniconda only if conda is not already available at target location.
 if [[ ! -x "${CONDA_BIN}" ]]; then

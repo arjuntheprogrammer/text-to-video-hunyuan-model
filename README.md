@@ -99,6 +99,9 @@ curl -O "http://localhost:8000/outputs/<filename>.mp4"
 - CPU offload defaults:
   - `ENABLE_SEQUENTIAL_CPU_OFFLOAD=1`
   - `ENABLE_MODEL_CPU_OFFLOAD=0`
+- Progress logs in `logs/hunyuan_app.log`:
+  - `PROGRESS_LOG_EVERY_STEPS=1`
+  - `PROGRESS_BAR_WIDTH=24`
 - First startup may take a long time due to model download.
 
 ## Persistence

@@ -30,6 +30,9 @@ The script is idempotent and non-interactive:
    - `HF_HOME`, `HF_HUB_CACHE`, `TORCH_HOME` -> `<repo>/models`
    - `OUTPUT_DIR` -> `<repo>/outputs`
    - `LOG_DIR`, `APP_LOG` -> `<repo>/logs/...`
+   - Progress log defaults:
+     - `PROGRESS_LOG_EVERY_STEPS=1`
+     - `PROGRESS_BAR_WIDTH=24`
    - OOM safety defaults:
      - `MAX_INPUT_IMAGE_SIDE=1024`
      - `OOM_SAFE_NUM_FRAMES=32`
@@ -77,6 +80,8 @@ LOG_DIR=./logs \
 APP_START_TIMEOUT_SECONDS=10800 \
 RUN_GENERATE_TEST=0 \
 TEST_IMAGE_PATH=./setup/test_input_512.png \
+PROGRESS_LOG_EVERY_STEPS=1 \
+PROGRESS_BAR_WIDTH=24 \
 MAX_INPUT_IMAGE_SIDE=1024 \
 OOM_SAFE_NUM_FRAMES=32 \
 OOM_SAFE_STEPS=12 \

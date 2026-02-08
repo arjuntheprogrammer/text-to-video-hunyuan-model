@@ -41,6 +41,8 @@ class Settings:
 
         self.gradio_concurrency_limit = int(os.getenv("GRADIO_CONCURRENCY_LIMIT", "1"))
         self.gradio_max_queue_size = int(os.getenv("GRADIO_MAX_QUEUE_SIZE", "16"))
+        self.progress_log_every_steps = int(os.getenv("PROGRESS_LOG_EVERY_STEPS", "1"))
+        self.progress_bar_width = int(os.getenv("PROGRESS_BAR_WIDTH", "24"))
         self.max_input_image_side = int(os.getenv("MAX_INPUT_IMAGE_SIDE", "1024"))
         self.oom_safe_num_frames = int(os.getenv("OOM_SAFE_NUM_FRAMES", "32"))
         self.oom_safe_steps = int(os.getenv("OOM_SAFE_STEPS", "12"))

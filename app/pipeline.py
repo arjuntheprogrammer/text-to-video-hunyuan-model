@@ -159,6 +159,49 @@ class HunyuanVideoPipelineManager:
         new_height = max(16, int((height * scale) // 16) * 16)
         return image.resize((new_width, new_height), Image.Resampling.LANCZOS)
 
+    @staticmethod
+    def _build_progress_bar(current_step: int, total_steps: int, width: int) -> str:
+        safe_total = max(total_steps, 1)
+        safe_width = max(width, 8)
+        progress_ratio = min(max(current_step / safe_total, 0.0), 1.0)
+        filled = int(progress_ratio * safe_width)
+        bar = ("#" * filled) + ("-" * (safe_width - filled))
+        return f"[{bar}] {current_step}/{safe_total} ({progress_ratio * 100:.1f}%)"
+
+    def _make_step_callback(
+        self,
+        total_steps: int,
+        resolution: tuple[int, int],
+        num_frames: int,
+        num_inference_steps: int,
+    ):
+        last_logged = {"step": 0}
+
+        def _callback(*args):
+            if len(args) != 4:
+                return args[-1] if args else {}
+            _, step_index, _timestep, callback_kwargs = args
+            current_step = int(step_index) + 1
+            log_every = max(1, settings.progress_log_every_steps)
+            if (
+                current_step == 1
+                or current_step == total_steps
+                or current_step % log_every == 0
+            ) and current_step > last_logged["step"]:
+                bar = self._build_progress_bar(current_step, total_steps, settings.progress_bar_width)
+                LOGGER.info(
+                    "Denoise progress %s | res=%sx%s frames=%s steps=%s",
+                    bar,
+                    resolution[0],
+                    resolution[1],
+                    num_frames,
+                    num_inference_steps,
+                )
+                last_logged["step"] = current_step
+            return callback_kwargs
+
+        return _callback
+
     def generate_video(
         self,
         image: Image.Image,
@@ -298,6 +341,13 @@ class HunyuanVideoPipelineManager:
                                 guidance_scale=safe_guidance,
                                 num_inference_steps=attempt_steps,
                                 generator=generator,
+                                callback_on_step_end=self._make_step_callback(
+                                    total_steps=attempt_steps,
+                                    resolution=input_image.size,
+                                    num_frames=attempt_frames,
+                                    num_inference_steps=attempt_steps,
+                                ),
+                                callback_on_step_end_tensor_inputs=["latents"],
                             )
                     used_attempt_frames = attempt_frames
                     used_attempt_steps = attempt_steps

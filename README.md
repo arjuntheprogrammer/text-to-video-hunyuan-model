@@ -97,8 +97,8 @@ curl -O "http://localhost:8000/outputs/<filename>.mp4"
   - input images are auto-resized to `MAX_INPUT_IMAGE_SIDE` (default `1024`)
   - conservative fallback profile uses `OOM_SAFE_NUM_FRAMES=32` and `OOM_SAFE_STEPS=12`
 - CPU offload defaults:
-  - `ENABLE_SEQUENTIAL_CPU_OFFLOAD=1`
-  - `ENABLE_MODEL_CPU_OFFLOAD=0`
+  - `ENABLE_SEQUENTIAL_CPU_OFFLOAD=0`
+  - `ENABLE_MODEL_CPU_OFFLOAD=1`
 - Progress logs in `logs/hunyuan_app.log`:
   - `PROGRESS_LOG_EVERY_STEPS=1`
   - `PROGRESS_BAR_WIDTH=24`

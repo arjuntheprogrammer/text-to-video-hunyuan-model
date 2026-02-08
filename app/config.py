@@ -46,13 +46,13 @@ class Settings:
         self.max_input_image_side = int(os.getenv("MAX_INPUT_IMAGE_SIDE", "1024"))
         self.oom_safe_num_frames = int(os.getenv("OOM_SAFE_NUM_FRAMES", "32"))
         self.oom_safe_steps = int(os.getenv("OOM_SAFE_STEPS", "12"))
-        self.enable_sequential_cpu_offload = os.getenv("ENABLE_SEQUENTIAL_CPU_OFFLOAD", "1").strip().lower() in {
+        self.enable_sequential_cpu_offload = os.getenv("ENABLE_SEQUENTIAL_CPU_OFFLOAD", "0").strip().lower() in {
             "1",
             "true",
             "yes",
             "on",
         }
-        self.enable_model_cpu_offload = os.getenv("ENABLE_MODEL_CPU_OFFLOAD", "0").strip().lower() in {
+        self.enable_model_cpu_offload = os.getenv("ENABLE_MODEL_CPU_OFFLOAD", "1").strip().lower() in {
             "1",
             "true",
             "yes",

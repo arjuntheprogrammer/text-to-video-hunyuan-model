@@ -19,7 +19,7 @@ The script is idempotent and non-interactive:
 2. Sets global git identity (default):
    - `user.name=Arjun Gupta`
    - `user.email=arjuntheprogrammer@gmail.com`
-3. Installs VS Code extensions from `setup/vscode-extensions.txt` (if VS Code remote CLI is available).
+3. Installs only missing VS Code extensions from `setup/vscode-extensions.txt` (if VS Code remote CLI is available).
 4. Installs Miniconda to `/opt/conda` if not present.
 5. Accepts Conda channel ToS non-interactively.
 6. Initializes Conda for `bash` and `zsh`.
@@ -114,3 +114,18 @@ From shell history on this instance, previous actions included:
 - multiple Docker/systemctl troubleshooting commands
 
 Because this environment is containerized and Docker-in-Docker is restricted, this setup deliberately avoids Docker and uses Conda-native execution.
+
+## One-time cache migration (if old cache exists in `/workspace/.hf_home`)
+
+If you already downloaded the model earlier to `/workspace/.hf_home`, run this once to avoid re-downloading:
+
+```bash
+cd /home/ubuntu/text-to-video-hunyuan-model
+pkill -f "python run.py" || true
+find ./models -mindepth 1 -maxdepth 1 ! -name '.gitkeep' -exec rm -rf {} +
+if command -v rsync >/dev/null 2>&1; then
+  rsync -a --delete /workspace/.hf_home/ ./models/
+else
+  cp -a /workspace/.hf_home/. ./models/
+fi
+```

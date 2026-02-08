@@ -92,6 +92,7 @@ curl -O "http://localhost:8000/outputs/<filename>.mp4"
 
 - `transformers` is pinned to `<5.0.0` for model compatibility.
 - xFormers attention is opt-in. Set `ENABLE_XFORMERS=1` in `.env` to enable.
+- Setup pins all model/cache paths to `./models` (`HF_HOME`, `HF_HUB_CACHE`, `TORCH_HOME`).
 - First startup may take a long time due to model download.
 
 ## Persistence

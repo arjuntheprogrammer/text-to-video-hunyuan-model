@@ -38,6 +38,7 @@ GIT_USER_EMAIL="${GIT_USER_EMAIL:-arjuntheprogrammer@gmail.com}"
 INSTALL_VSCODE_EXTENSIONS="${INSTALL_VSCODE_EXTENSIONS:-1}"
 VSCODE_EXTENSIONS_FILE="${VSCODE_EXTENSIONS_FILE:-${REPO_DIR}/setup/vscode-extensions.txt}"
 LOG_DIR="${LOG_DIR:-${REPO_DIR}/logs}"
+HF_HOME_DIR="${HF_HOME_DIR:-${REPO_DIR}/models}"
 
 APP_LOG="${APP_LOG:-${LOG_DIR}/hunyuan_app.log}"
 APP_PID_FILE="${APP_PID_FILE:-${LOG_DIR}/hunyuan_app.pid}"
@@ -134,16 +135,30 @@ if [[ "${INSTALL_VSCODE_EXTENSIONS}" == "1" ]]; then
   if [[ -f "${VSCODE_EXTENSIONS_FILE}" ]]; then
     if vscode_code_cli="$(find_vscode_code_cli)"; then
       log "Installing VS Code extensions via: ${vscode_code_cli}"
+      installed_extensions_file="$(mktemp /tmp/vscode_extensions.XXXXXX)"
+      "${vscode_code_cli}" --list-extensions 2>/dev/null | tr '[:upper:]' '[:lower:]' > "${installed_extensions_file}" || true
+      ext_installed=0
+      ext_skipped=0
+      ext_failed=0
       while IFS= read -r ext || [[ -n "${ext}" ]]; do
         # Skip comments and empty lines.
         [[ -z "${ext}" ]] && continue
         [[ "${ext}" =~ ^# ]] && continue
-        if "${vscode_code_cli}" --install-extension "${ext}" --force >/dev/null 2>&1; then
-          log "VS Code extension ensured: ${ext}"
+        ext_lc="$(printf '%s' "${ext}" | tr '[:upper:]' '[:lower:]')"
+        if grep -Fxq "${ext_lc}" "${installed_extensions_file}"; then
+          ext_skipped=$((ext_skipped + 1))
+          continue
+        fi
+        if "${vscode_code_cli}" --install-extension "${ext}" >/dev/null 2>&1; then
+          printf '%s\n' "${ext_lc}" >> "${installed_extensions_file}"
+          ext_installed=$((ext_installed + 1))
         else
+          ext_failed=$((ext_failed + 1))
           err "Failed to install VS Code extension: ${ext}"
         fi
       done < "${VSCODE_EXTENSIONS_FILE}"
+      rm -f "${installed_extensions_file}"
+      log "VS Code extension setup done: installed=${ext_installed} skipped=${ext_skipped} failed=${ext_failed}"
     else
       log "VS Code CLI not found. Skipping extension install."
       log "Connect once with VS Code Remote-SSH and rerun to install extensions automatically."
@@ -250,13 +265,13 @@ if [[ -z "${token_in_file}" || "${token_in_file}" == "your_huggingface_token_her
   fi
 fi
 
-# Force cache/output paths to repo-local directories for reproducible setup.
-mkdir -p "${REPO_DIR}/models" "${REPO_DIR}/outputs"
-upsert_env_key "${ENV_FILE}" "HF_HOME" "${REPO_DIR}/models"
-upsert_env_key "${ENV_FILE}" "HF_HUB_CACHE" "${REPO_DIR}/models"
+# Configure cache/output paths to repo-local directories.
+mkdir -p "${HF_HOME_DIR}" "${REPO_DIR}/outputs"
+upsert_env_key "${ENV_FILE}" "HF_HOME" "${HF_HOME_DIR}"
+upsert_env_key "${ENV_FILE}" "HF_HUB_CACHE" "${HF_HOME_DIR}"
 # TRANSFORMERS_CACHE is deprecated in transformers v5; remove to avoid warnings.
 remove_env_key "${ENV_FILE}" "TRANSFORMERS_CACHE"
-upsert_env_key "${ENV_FILE}" "TORCH_HOME" "${REPO_DIR}/models"
+upsert_env_key "${ENV_FILE}" "TORCH_HOME" "${HF_HOME_DIR}"
 upsert_env_key "${ENV_FILE}" "OUTPUT_DIR" "${REPO_DIR}/outputs"
 upsert_env_key "${ENV_FILE}" "API_HOST" "0.0.0.0"
 upsert_env_key "${ENV_FILE}" "API_PORT" "8000"

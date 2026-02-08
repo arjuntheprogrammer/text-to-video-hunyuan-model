@@ -84,11 +84,16 @@ class HunyuanVideoPipelineManager:
                 self.pipe.vae.enable_tiling()
 
             if self.device == "cuda" and hasattr(self.pipe, "enable_xformers_memory_efficient_attention"):
-                try:
-                    self.pipe.enable_xformers_memory_efficient_attention()
-                    LOGGER.info("xFormers memory efficient attention enabled.")
-                except Exception as exc:  # pragma: no cover
-                    LOGGER.warning("xFormers unavailable: %s", exc)
+                if settings.enable_xformers:
+                    try:
+                        self.pipe.enable_xformers_memory_efficient_attention()
+                        LOGGER.info("xFormers memory efficient attention enabled.")
+                    except Exception as exc:  # pragma: no cover
+                        LOGGER.warning("xFormers unavailable: %s", exc)
+                else:
+                    LOGGER.info(
+                        "xFormers memory efficient attention disabled (ENABLE_XFORMERS not set)."
+                    )
 
             self.model_loaded = True
             LOGGER.info("Loaded model: %s", settings.model_id)

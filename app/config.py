@@ -39,6 +39,12 @@ class Settings:
 
         self.gradio_concurrency_limit = int(os.getenv("GRADIO_CONCURRENCY_LIMIT", "1"))
         self.gradio_max_queue_size = int(os.getenv("GRADIO_MAX_QUEUE_SIZE", "16"))
+        self.enable_xformers = os.getenv("ENABLE_XFORMERS", "0").strip().lower() in {
+            "1",
+            "true",
+            "yes",
+            "on",
+        }
 
 
 settings = Settings()

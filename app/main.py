@@ -1,3 +1,4 @@
+import logging
 from io import BytesIO
 
 from fastapi import FastAPI, File, Form, HTTPException, UploadFile
@@ -9,6 +10,8 @@ from app.config import settings
 from app.pipeline import get_pipeline_manager
 from app.schemas import GenerateResponse, HealthResponse
 from app.utils import ensure_directories, sanitize_filename
+
+LOGGER = logging.getLogger(__name__)
 
 app = FastAPI(
     title="HunyuanVideo-I2V API",
@@ -83,6 +86,7 @@ async def generate(
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
     except Exception as exc:
+        LOGGER.exception("Generation failed with unhandled exception")
         raise HTTPException(status_code=500, detail=f"Generation failed: {exc}") from exc
 
     return GenerateResponse(

@@ -147,11 +147,18 @@ class HunyuanVideoPipelineManager:
     @staticmethod
     def _resize_to_max_side(image: Image.Image, max_side: int) -> Image.Image:
         if max_side <= 0:
-            return image
+            max_side = max(image.size)
         width, height = image.size
         current_max_side = max(width, height)
         if current_max_side <= max_side:
-            return image
+            # HunyuanVideo requires width/height divisible by 16.
+            if width % 16 == 0 and height % 16 == 0:
+                return image
+            new_width = max(16, (width // 16) * 16)
+            new_height = max(16, (height // 16) * 16)
+            if new_width == width and new_height == height:
+                return image
+            return image.resize((new_width, new_height), Image.Resampling.LANCZOS)
 
         scale = max_side / float(current_max_side)
         # Keep dimensions divisible by 16 for more stable latent shape handling.
@@ -277,8 +284,7 @@ class HunyuanVideoPipelineManager:
                 )
 
             conservative_mode = (
-                input_image.size != original_size
-                or safe_num_frames > settings.oom_safe_num_frames
+                safe_num_frames > settings.oom_safe_num_frames
                 or safe_steps > settings.oom_safe_steps
             )
             if conservative_mode:

@@ -12,6 +12,14 @@ End-to-end image-to-video generation service powered by the open-source `hunyuan
 - NVIDIA Container Toolkit installed
 - Docker Engine + Docker Compose v2
 
+## Hugging Face Token Setup
+Create your local token file before startup:
+
+```bash
+cp .env_template .env
+# Edit .env and set HF_TOKEN=your_huggingface_token_here
+```
+
 ## NVIDIA Container Toolkit Setup
 Install toolkit and restart Docker:
 

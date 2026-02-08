@@ -6,7 +6,9 @@ ENV DEBIAN_FRONTEND=noninteractive \
     HF_HOME=/app/models \
     HF_HUB_CACHE=/app/models \
     TRANSFORMERS_CACHE=/app/models \
-    TORCH_HOME=/app/models
+    TORCH_HOME=/app/models \
+    HF_TOKEN="" \
+    HUGGING_FACE_HUB_TOKEN=""
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
     python3 \

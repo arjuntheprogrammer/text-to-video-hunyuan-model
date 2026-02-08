@@ -36,6 +36,11 @@ class HunyuanVideoPipelineManager:
 
     def _load_pipeline(self) -> None:
         ensure_directories()
+        token = settings.hf_token or None
+        if token is None:
+            LOGGER.warning(
+                "HF_TOKEN is not set. Model download/load may fail for gated repositories."
+            )
         try:
             try:
                 from diffusers import (
@@ -49,6 +54,7 @@ class HunyuanVideoPipelineManager:
                     subfolder="transformer",
                     torch_dtype=transformer_dtype,
                     cache_dir=str(settings.models_dir),
+                    token=token,
                 )
 
                 self.pipe = HunyuanVideoImageToVideoPipeline.from_pretrained(
@@ -56,6 +62,7 @@ class HunyuanVideoPipelineManager:
                     transformer=transformer,
                     torch_dtype=self.dtype,
                     cache_dir=str(settings.models_dir),
+                    token=token,
                 )
             except ImportError:
                 from diffusers import DiffusionPipeline
@@ -65,6 +72,7 @@ class HunyuanVideoPipelineManager:
                     torch_dtype=self.dtype,
                     cache_dir=str(settings.models_dir),
                     trust_remote_code=True,
+                    token=token,
                 )
             self.pipe.to(self.device)
 

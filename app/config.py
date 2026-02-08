@@ -6,6 +6,7 @@ class Settings:
     def __init__(self) -> None:
         self.base_dir = Path(__file__).resolve().parents[1]
         self.model_id = os.getenv("MODEL_ID", "hunyuanvideo-community/HunyuanVideo-I2V")
+        self.hf_token = os.getenv("HF_TOKEN") or os.getenv("HUGGING_FACE_HUB_TOKEN")
 
         self.models_dir = Path(os.getenv("HF_HOME", self.base_dir / "models"))
         self.outputs_dir = Path(os.getenv("OUTPUT_DIR", self.base_dir / "outputs"))

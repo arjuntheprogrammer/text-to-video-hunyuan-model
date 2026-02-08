@@ -27,8 +27,9 @@ The script is idempotent and non-interactive:
 8. Installs Python dependencies from `requirements.txt`.
 9. Ensures `.env` exists and has a valid `HF_TOKEN`.
 10. Sets cache/runtime paths in `.env` to repo-local folders:
-   - `HF_HOME`, `HF_HUB_CACHE`, `TRANSFORMERS_CACHE`, `TORCH_HOME` -> `<repo>/models`
+   - `HF_HOME`, `HF_HUB_CACHE`, `TORCH_HOME` -> `<repo>/models`
    - `OUTPUT_DIR` -> `<repo>/outputs`
+   - Removes deprecated `TRANSFORMERS_CACHE` entry if present
 11. Starts app in background (`python run.py` in Conda env).
 12. Waits for `http://127.0.0.1:8000/health` to become available.
 

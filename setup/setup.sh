@@ -219,6 +219,13 @@ upsert_env_key() {
   fi
 }
 
+# Helper: remove KEY=value entries from .env if present.
+remove_env_key() {
+  local file="$1"
+  local key="$2"
+  sed -i "/^${key}=/d" "${file}"
+}
+
 # Helper: read the latest value for a key from .env.
 read_env_key() {
   local file="$1"
@@ -243,7 +250,8 @@ fi
 mkdir -p "${REPO_DIR}/models" "${REPO_DIR}/outputs"
 upsert_env_key "${ENV_FILE}" "HF_HOME" "${REPO_DIR}/models"
 upsert_env_key "${ENV_FILE}" "HF_HUB_CACHE" "${REPO_DIR}/models"
-upsert_env_key "${ENV_FILE}" "TRANSFORMERS_CACHE" "${REPO_DIR}/models"
+# TRANSFORMERS_CACHE is deprecated in transformers v5; remove to avoid warnings.
+remove_env_key "${ENV_FILE}" "TRANSFORMERS_CACHE"
 upsert_env_key "${ENV_FILE}" "TORCH_HOME" "${REPO_DIR}/models"
 upsert_env_key "${ENV_FILE}" "OUTPUT_DIR" "${REPO_DIR}/outputs"
 upsert_env_key "${ENV_FILE}" "API_HOST" "0.0.0.0"

@@ -216,6 +216,7 @@ fi
 log "Installing Python dependencies in env '${ENV_NAME}'."
 conda run -n "${ENV_NAME}" python -m pip install --upgrade pip
 conda run -n "${ENV_NAME}" python -m pip install -r "${REPO_DIR}/requirements.txt"
+conda run -n "${ENV_NAME}" python -m pip install --upgrade hf_transfer
 
 # Load .env (or create it from template) and validate Hugging Face token.
 ENV_FILE="${REPO_DIR}/.env"
@@ -274,6 +275,7 @@ fi
 mkdir -p "${HF_HOME_DIR}" "${REPO_DIR}/outputs"
 upsert_env_key "${ENV_FILE}" "HF_HOME" "${HF_HOME_DIR}"
 upsert_env_key "${ENV_FILE}" "HF_HUB_CACHE" "${HF_HOME_DIR}"
+upsert_env_key "${ENV_FILE}" "HF_HUB_ENABLE_HF_TRANSFER" "1"
 # TRANSFORMERS_CACHE is deprecated in transformers v5; remove to avoid warnings.
 remove_env_key "${ENV_FILE}" "TRANSFORMERS_CACHE"
 upsert_env_key "${ENV_FILE}" "TORCH_HOME" "${HF_HOME_DIR}"

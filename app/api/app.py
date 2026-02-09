@@ -95,6 +95,11 @@ async def generate(
     content = await image.read()
     if not content:
         raise HTTPException(status_code=400, detail="Uploaded image is empty.")
+    LOGGER.info(
+        "Uploaded image received. filename=%s bytes=%d",
+        image.filename,
+        len(content),
+    )
 
     try:
         pil_image = Image.open(BytesIO(content)).convert("RGB")
@@ -112,6 +117,7 @@ async def generate(
             seed=seed,
             duration_seconds=duration_seconds,
             quality_profile=quality_profile,
+            image_source=f"upload:{image.filename}",
             subject=subject,
             action=action,
             camera_motion=camera_motion,

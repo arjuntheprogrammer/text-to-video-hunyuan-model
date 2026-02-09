@@ -83,6 +83,7 @@ def _generate_from_ui(
             seed=use_seed,
             duration_seconds=float(duration_seconds) if duration_seconds is not None else None,
             quality_profile=quality_profile,
+            image_source="gradio_upload",
             subject=subject,
             action=action,
             camera_motion=camera_motion,

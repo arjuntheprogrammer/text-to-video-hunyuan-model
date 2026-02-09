@@ -141,6 +141,7 @@ def main() -> None:
             seed=seed,
             duration_seconds=case.get("duration_seconds", defaults.get("duration_seconds")),
             quality_profile=case.get("quality_profile", defaults.get("quality_profile", settings.quality_profile)),
+            image_source=str(case.get("image_path") or image_path or ""),
             subject=case.get("subject", ""),
             action=case.get("action", ""),
             camera_motion=case.get("camera_motion", ""),

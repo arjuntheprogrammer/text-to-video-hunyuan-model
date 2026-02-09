@@ -242,7 +242,7 @@ Measured on a single NVIDIA L40S (48GB) with captioning enabled (on-demand GPU l
 | --- | --- | --- | --- | --- | --- |
 | 6s sample (tests/samples/02) | 96 / 16 | 16 | 720 | enabled | ~68s |
 | 20s sample (tests/samples/02) | 320 / 16 | 16 | 720 | enabled | ~263s |
-| 10s face edit (dp_arjun_gupta.png) | 80 / 8 | 16 | 1080 | enabled | ~396s |
+| 10s face edit (tests/samples/05) | 80 / 8 | 16 | 1080 | enabled | ~396s |
 
 Notes:
 - Times include caption generation + video encode.

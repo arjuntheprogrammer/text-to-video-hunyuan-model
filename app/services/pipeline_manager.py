@@ -496,10 +496,23 @@ class HunyuanVideoPipelineManager:
 
         original_max_side = max(original_size)
         max_input_side = self._resolve_max_input_side(cap=profile.max_side)
-        highest_allowed_side = min(original_max_side, max(384, max_input_side))
+        preferred_side = min(original_max_side, profile.max_side)
+        prefer_high_res = (
+            settings.prefer_high_res
+            and safe_num_frames <= settings.prefer_high_res_max_frames
+        )
+        start_side = max_input_side
+        if prefer_high_res and preferred_side > max_input_side:
+            LOGGER.info(
+                "Prefer high-res enabled. Trying higher input resolution first. preferred=%s max_input_side=%s frames=%s",
+                preferred_side,
+                max_input_side,
+                safe_num_frames,
+            )
+            start_side = preferred_side
+        start_side = min(original_max_side, max(384, start_side))
         resolution_seed = [
-            highest_allowed_side,
-            2048,
+            start_side,
             1536,
             1280,
             1024,
@@ -512,6 +525,8 @@ class HunyuanVideoPipelineManager:
         resolution_candidates = []
         for side in resolution_seed:
             resolved_side = min(original_max_side, max(384, side))
+            if resolved_side > start_side:
+                continue
             if resolved_side not in resolution_candidates:
                 resolution_candidates.append(resolved_side)
 

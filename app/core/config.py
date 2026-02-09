@@ -90,6 +90,10 @@ class Settings:
         max_input_override = _optional_int_env("MAX_INPUT_IMAGE_SIDE")
         self.max_input_image_side_override = max_input_override is not None
         self.max_input_image_side = max_input_override or 1024
+        self.prefer_high_res = _bool_env("PREFER_HIGH_RES", "1")
+        self.prefer_high_res_max_frames = int(os.getenv("PREFER_HIGH_RES_MAX_FRAMES", "96"))
+        if self.prefer_high_res_max_frames < 1:
+            self.prefer_high_res_max_frames = 1
         self.oom_safe_num_frames = int(os.getenv("OOM_SAFE_NUM_FRAMES", "32"))
         self.oom_safe_steps = int(os.getenv("OOM_SAFE_STEPS", "12"))
         self.default_prompt_suffix = os.getenv(

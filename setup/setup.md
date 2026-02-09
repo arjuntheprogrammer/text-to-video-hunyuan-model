@@ -136,6 +136,7 @@ INSTALL_VSCODE_EXTENSIONS=0 ./setup/setup.sh
 - `requirements.txt` pins `transformers` to `<5.0.0` for model compatibility.
 - xFormers memory-efficient attention is opt-in via `ENABLE_XFORMERS=1`.
 - Auto input sizing is enabled via `AUTO_MAX_INPUT_SIDE=1`. Set `MAX_INPUT_IMAGE_SIDE` to a number to override.
+- Optional quality-first boost for short clips: `PREFER_HIGH_RES=1` (default) with `PREFER_HIGH_RES_MAX_FRAMES` allows a higher initial resolution and falls back on OOM.
 - Output video is resized to the selected long-edge preset while preserving input aspect ratio.
 - Deflicker post-processing is disabled by default; toggle via `ENABLE_DEFLICKER` or the API parameter.
 - Optional sharpening can be enabled via `ENABLE_SHARPEN` to recover crisp motion.
@@ -148,7 +149,7 @@ INSTALL_VSCODE_EXTENSIONS=0 ./setup/setup.sh
   - applies negative prompt terms to reduce flicker/fade/morph artifacts
   - optional overrides: `DEFAULT_PROMPT_SUFFIX`, `DEFAULT_NEGATIVE_PROMPT`
 - Generation retry behavior:
-  - first attempt uses user-requested frames/steps at highest allowed resolution
+  - first attempt uses user-requested frames/steps at the planned resolution (boosted for short clips when enabled)
   - frame/step and resolution are downgraded only after OOM
 - Quality profiles cap max frames/steps/input side for stability (`low`, `balanced`, `high`). Configure via `QUALITY_PROFILE`, `MAX_FRAMES_BY_PROFILE`, `MAX_STEPS_BY_PROFILE`, `MAX_INPUT_SIDE_BY_PROFILE`.
 - Captioning defaults:

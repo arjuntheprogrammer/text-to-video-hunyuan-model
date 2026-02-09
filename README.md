@@ -269,8 +269,9 @@ Output long-edge presets: `720`, `1080`, `1440` (aspect ratio derived from the i
 - OOM safety defaults:
   - input images are auto-resized based on GPU VRAM when `AUTO_MAX_INPUT_SIDE=1`
   - set `MAX_INPUT_IMAGE_SIDE` to a number to override auto sizing
+  - optional quality-first boost for short clips: `PREFER_HIGH_RES=1` (default) with `PREFER_HIGH_RES_MAX_FRAMES` allows a higher initial resolution and falls back on OOM
   - conservative fallback profile uses `OOM_SAFE_NUM_FRAMES=32` and `OOM_SAFE_STEPS=12`
-  - retry order now starts with user-requested `frames/steps` at highest allowed resolution, and downgrades only after OOM
+  - retry order starts with user-requested `frames/steps` at the planned resolution (boosted for short clips when enabled), and downgrades only after OOM
 - Output video is resized to the selected long-edge preset while preserving input aspect ratio.
 - If `duration_seconds` is provided (API or UI), `num_frames` is derived from `duration_seconds × fps` and then capped by the selected quality profile.
 - Prompt enhancement defaults:

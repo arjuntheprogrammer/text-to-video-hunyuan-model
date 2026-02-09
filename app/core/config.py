@@ -114,7 +114,7 @@ class Settings:
         self.enable_xformers = _bool_env("ENABLE_XFORMERS", "0")
         self.local_files_only = _bool_env("LOCAL_FILES_ONLY", "1")
         self.allow_remote_fallback = _bool_env("ALLOW_REMOTE_FALLBACK", "1")
-        self.enable_deflicker = _bool_env("ENABLE_DEFLICKER", "1")
+        self.enable_deflicker = _bool_env("ENABLE_DEFLICKER", "0")
         self.deflicker_window = int(os.getenv("DEFLICKER_WINDOW", "3"))
         if self.deflicker_window < 1:
             self.deflicker_window = 1
@@ -140,6 +140,9 @@ class Settings:
             "MAX_INPUT_SIDE_BY_PROFILE",
             {"low": 768, "balanced": 1024, "high": 1280},
         )
+
+        self.enable_sharpen = _bool_env("ENABLE_SHARPEN", "0")
+        self.sharpen_strength = float(os.getenv("SHARPEN_STRENGTH", "0.35"))
 
         self.default_output_long_edge = int(os.getenv("DEFAULT_OUTPUT_LONG_EDGE", "1080"))
         self.output_long_edge_options = [

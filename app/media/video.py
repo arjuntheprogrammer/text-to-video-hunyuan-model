@@ -5,7 +5,7 @@ from typing import Iterable, Sequence
 
 import imageio
 import numpy as np
-from PIL import Image
+from PIL import Image, ImageFilter
 
 from app.core.config import settings
 from app.utils.common import build_timestamped_filename, ensure_directories
@@ -95,6 +95,23 @@ def deflicker_frames(frames: Sequence[np.ndarray], window: int = 3) -> list[np.n
     return output
 
 
+def sharpen_frames(frames: Sequence[np.ndarray], strength: float) -> list[np.ndarray]:
+    if not frames:
+        return []
+    if strength <= 0:
+        return list(frames)
+
+    output: list[np.ndarray] = []
+    for frame in frames:
+        image = Image.fromarray(frame)
+        blurred = image.filter(ImageFilter.GaussianBlur(radius=1.0))
+        orig = np.asarray(image, dtype=np.float32)
+        blur = np.asarray(blurred, dtype=np.float32)
+        sharpened = np.clip(orig + strength * (orig - blur), 0, 255).astype(np.uint8)
+        output.append(sharpened)
+    return output
+
+
 def _fit_frame_to_aspect_ratio(
     frame: np.ndarray,
     target_width: int,
@@ -155,6 +172,8 @@ def save_frames_to_mp4(
     target_height: int | None = None,
     enable_deflicker: bool = False,
     deflicker_window: int = 3,
+    enable_sharpen: bool = False,
+    sharpen_strength: float = 0.35,
 ) -> Path:
     ensure_directories()
 
@@ -170,6 +189,9 @@ def save_frames_to_mp4(
     if enable_deflicker:
         LOGGER.info("Applying deflicker. window=%s frames=%d", deflicker_window, len(normalized_frames))
         normalized_frames = deflicker_frames(normalized_frames, window=deflicker_window)
+    if enable_sharpen:
+        LOGGER.info("Applying sharpen. strength=%.2f frames=%d", sharpen_strength, len(normalized_frames))
+        normalized_frames = sharpen_frames(normalized_frames, strength=sharpen_strength)
     if target_width and target_height:
         LOGGER.info(
             "Resizing frames to target. target=%sx%s",

@@ -154,6 +154,9 @@ def main() -> None:
             enable_deflicker=bool(
                 case.get("enable_deflicker", defaults.get("enable_deflicker", settings.enable_deflicker))
             ),
+            enable_sharpen=bool(
+                case.get("enable_sharpen", defaults.get("enable_sharpen", settings.enable_sharpen))
+            ),
         )
 
         name = _slugify(case.get("name", f"case_{idx}"))

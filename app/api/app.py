@@ -66,10 +66,11 @@ async def generate(
     quality_profile: str = Form(default=settings.quality_profile),
     output_long_edge: int = Form(settings.default_output_long_edge),
     enable_deflicker: bool = Form(settings.enable_deflicker),
+    enable_sharpen: bool = Form(settings.enable_sharpen),
     seed: int | None = Form(default=None),
 ) -> GenerateResponse:
     LOGGER.info(
-        "API /generate request received. filename=%s prompt_len=%d num_frames=%s steps=%s fps=%s guidance_scale=%s seed=%s output_long_edge=%s deflicker=%s profile=%s duration=%s",
+        "API /generate request received. filename=%s prompt_len=%d num_frames=%s steps=%s fps=%s guidance_scale=%s seed=%s output_long_edge=%s deflicker=%s sharpen=%s profile=%s duration=%s",
         image.filename,
         len(prompt),
         num_frames,
@@ -79,6 +80,7 @@ async def generate(
         seed,
         output_long_edge,
         enable_deflicker,
+        enable_sharpen,
         quality_profile,
         duration_seconds,
     )
@@ -119,6 +121,7 @@ async def generate(
             negative_prompt=negative_prompt,
             output_long_edge=output_long_edge,
             enable_deflicker=enable_deflicker,
+            enable_sharpen=enable_sharpen,
         )
     except ValueError as exc:
         LOGGER.warning("Generation rejected by validation: %s", exc)

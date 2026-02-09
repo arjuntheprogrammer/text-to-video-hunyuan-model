@@ -94,12 +94,14 @@ MAX_PROMPT_WORDS=60 \
 MAX_NEGATIVE_PROMPT_WORDS=60 \
 DEFAULT_OUTPUT_LONG_EDGE=1080 \
 OUTPUT_LONG_EDGE_OPTIONS=720,1080,1440 \
-ENABLE_DEFLICKER=1 \
+ENABLE_DEFLICKER=0 \
 DEFLICKER_WINDOW=3 \
 QUALITY_PROFILE=balanced \
 MAX_FRAMES_BY_PROFILE=low:160,balanced:320,high:320 \
 MAX_STEPS_BY_PROFILE=low:20,balanced:28,high:32 \
 MAX_INPUT_SIDE_BY_PROFILE=low:768,balanced:1024,high:1280 \
+ENABLE_SHARPEN=0 \
+SHARPEN_STRENGTH=0.35 \
 ENABLE_CAPTIONING=1 \
 CAPTION_MODEL_ID=Salesforce/blip2-opt-2.7b \
 CAPTION_DEVICE=cpu \
@@ -134,7 +136,8 @@ INSTALL_VSCODE_EXTENSIONS=0 ./setup/setup.sh
 - xFormers memory-efficient attention is opt-in via `ENABLE_XFORMERS=1`.
 - Auto input sizing is enabled via `AUTO_MAX_INPUT_SIDE=1`. Set `MAX_INPUT_IMAGE_SIDE` to a number to override.
 - Output video is resized to the selected long-edge preset while preserving input aspect ratio.
-- Deflicker post-processing is enabled by default; toggle via `ENABLE_DEFLICKER` or the API parameter.
+- Deflicker post-processing is disabled by default; toggle via `ENABLE_DEFLICKER` or the API parameter.
+- Optional sharpening can be enabled via `ENABLE_SHARPEN` to recover crisp motion.
 - Gradio uses a free-form `Frames` input so duration is not UI-capped (`duration = frames / fps`).
 - Model loading is local-only by default. If local files are missing, `ALLOW_REMOTE_FALLBACK=1` lets it download as a fallback.
 - Prompt enhancement is enabled by default:

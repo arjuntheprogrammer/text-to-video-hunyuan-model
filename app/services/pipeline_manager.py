@@ -369,6 +369,7 @@ class HunyuanVideoPipelineManager:
         negative_prompt: str | None = None,
         output_long_edge: int | None = None,
         enable_deflicker: bool | None = None,
+        enable_sharpen: bool | None = None,
     ) -> GenerationResult:
         if not self.model_loaded or self.pipe is None:
             raise RuntimeError(
@@ -667,6 +668,7 @@ class HunyuanVideoPipelineManager:
             long_edge=requested_long_edge,
         )
         use_deflicker = settings.enable_deflicker if enable_deflicker is None else enable_deflicker
+        use_sharpen = settings.enable_sharpen if enable_sharpen is None else enable_sharpen
 
         output_path = save_frames_to_mp4(
             frames=frames,
@@ -675,6 +677,8 @@ class HunyuanVideoPipelineManager:
             target_height=output_height,
             enable_deflicker=use_deflicker,
             deflicker_window=settings.deflicker_window,
+            enable_sharpen=use_sharpen,
+            sharpen_strength=settings.sharpen_strength,
         )
         LOGGER.info(
             "Pipeline generation completed. output=%s resolution=%sx%s generated_frames=%d requested_frames=%d used_steps=%d elapsed=%.2fs",

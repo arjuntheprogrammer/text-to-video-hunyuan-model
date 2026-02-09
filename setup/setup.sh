@@ -94,6 +94,103 @@ else
   log "OS packages already present; skipping apt install."
 fi
 
+# Optional: configure Zsh + Oh My Zsh + plugins for a target user.
+ZSH_SETUP_ENABLED="${ZSH_SETUP_ENABLED:-1}"
+ZSH_SETUP_USER="${ZSH_SETUP_USER:-}"
+
+if [[ "${ZSH_SETUP_ENABLED}" == "1" ]]; then
+  if [[ -z "${ZSH_SETUP_USER}" ]]; then
+    if [[ -n "${SUDO_USER:-}" ]]; then
+      ZSH_SETUP_USER="${SUDO_USER}"
+    else
+      ZSH_SETUP_USER="$(id -un)"
+    fi
+  fi
+
+  ZSH_SETUP_HOME="$(getent passwd "${ZSH_SETUP_USER}" 2>/dev/null | cut -d: -f6 || true)"
+  if [[ -z "${ZSH_SETUP_HOME}" ]]; then
+    err "Unable to resolve home directory for user '${ZSH_SETUP_USER}'. Skipping Zsh setup."
+  else
+    ZSH_BIN="$(command -v zsh || true)"
+    if [[ -z "${ZSH_BIN}" ]]; then
+      err "zsh not found after install. Skipping Zsh setup."
+    else
+      log "Configuring Zsh for user ${ZSH_SETUP_USER} (home=${ZSH_SETUP_HOME})."
+
+      run_as_user() {
+        local user="$1"
+        shift
+        local cmd="$*"
+        if [[ "${user}" == "$(id -un)" ]]; then
+          bash -lc "${cmd}"
+        else
+          if command -v sudo >/dev/null 2>&1; then
+            sudo -u "${user}" -H bash -lc "${cmd}"
+          else
+            su - "${user}" -s /bin/bash -c "${cmd}"
+          fi
+        fi
+      }
+
+      ZSH_DIR="${ZSH_SETUP_HOME}/.oh-my-zsh"
+      if [[ ! -d "${ZSH_DIR}" ]]; then
+        log "Installing Oh My Zsh."
+        run_as_user "${ZSH_SETUP_USER}" "RUNZSH=no CHSH=no KEEP_ZSHRC=yes ZSH='${ZSH_DIR}' sh -c \"\$(curl -fsSL https://raw.githubusercontent.com/ohmyzsh/ohmyzsh/master/tools/install.sh)\""
+      else
+        log "Oh My Zsh already present at ${ZSH_DIR}; skipping install."
+      fi
+
+      zshrc="${ZSH_SETUP_HOME}/.zshrc"
+      if [[ ! -f "${zshrc}" ]]; then
+        log "Creating ${zshrc}."
+        run_as_user "${ZSH_SETUP_USER}" "printf '%s\n' \"export ZSH=\\\"${ZSH_DIR}\\\"\" 'ZSH_THEME=\"robbyrussell\"' 'plugins=(git)' 'source \\$ZSH/oh-my-zsh.sh' > '${zshrc}'"
+      fi
+
+      plugins_dir="${ZSH_DIR}/custom/plugins"
+      run_as_user "${ZSH_SETUP_USER}" "mkdir -p '${plugins_dir}'"
+
+      if [[ ! -d "${plugins_dir}/zsh-autosuggestions" ]]; then
+        log "Installing zsh-autosuggestions."
+        run_as_user "${ZSH_SETUP_USER}" "git clone https://github.com/zsh-users/zsh-autosuggestions.git '${plugins_dir}/zsh-autosuggestions'"
+      else
+        log "zsh-autosuggestions already installed; skipping."
+      fi
+
+      if [[ ! -d "${plugins_dir}/zsh-syntax-highlighting" ]]; then
+        log "Installing zsh-syntax-highlighting."
+        run_as_user "${ZSH_SETUP_USER}" "git clone https://github.com/zsh-users/zsh-syntax-highlighting.git '${plugins_dir}/zsh-syntax-highlighting'"
+      else
+        log "zsh-syntax-highlighting already installed; skipping."
+      fi
+
+      run_as_user "${ZSH_SETUP_USER}" "if grep -q '^plugins=' '${zshrc}'; then
+        if ! grep -q 'zsh-autosuggestions' '${zshrc}'; then
+          sed -i 's/^plugins=(\\([^)]*\\))/plugins=(\\1 zsh-autosuggestions)/' '${zshrc}'
+        fi
+        if ! grep -q 'zsh-syntax-highlighting' '${zshrc}'; then
+          sed -i 's/^plugins=(\\([^)]*\\))/plugins=(\\1 zsh-syntax-highlighting)/' '${zshrc}'
+        fi
+      else
+        printf '\nplugins=(git zsh-autosuggestions zsh-syntax-highlighting)\n' >> '${zshrc}'
+      fi"
+
+      current_shell="$(getent passwd "${ZSH_SETUP_USER}" 2>/dev/null | cut -d: -f7 || true)"
+      if [[ "${current_shell}" != "${ZSH_BIN}" ]]; then
+        log "Setting default shell for ${ZSH_SETUP_USER} to ${ZSH_BIN}."
+        if [[ "${EUID}" -eq 0 ]]; then
+          chsh -s "${ZSH_BIN}" "${ZSH_SETUP_USER}" || true
+        else
+          ${SUDO} chsh -s "${ZSH_BIN}" "${ZSH_SETUP_USER}" || true
+        fi
+      else
+        log "Default shell already set to zsh for ${ZSH_SETUP_USER}."
+      fi
+    fi
+  fi
+else
+  log "Zsh setup disabled (ZSH_SETUP_ENABLED=${ZSH_SETUP_ENABLED})."
+fi
+
 # Ensure global git identity is configured for commits on fresh instances.
 git config --global user.name "${GIT_USER_NAME}"
 git config --global user.email "${GIT_USER_EMAIL}"

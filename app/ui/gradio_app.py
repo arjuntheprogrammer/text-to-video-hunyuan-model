@@ -12,6 +12,20 @@ from app.utils.common import ensure_directories
 LOGGER = logging.getLogger(__name__)
 
 
+def _compute_frames(duration_seconds: float, fps: int) -> int:
+    try:
+        duration = float(duration_seconds)
+    except (TypeError, ValueError):
+        duration = float(settings.default_duration_seconds)
+    try:
+        fps_value = int(fps)
+    except (TypeError, ValueError):
+        fps_value = settings.default_fps
+    fps_value = max(settings.min_fps, min(settings.max_fps, fps_value))
+    frames = max(settings.min_num_frames, int(round(duration * fps_value)))
+    return frames
+
+
 def _generate_from_ui(
     image: Image.Image,
     prompt: str,
@@ -22,16 +36,19 @@ def _generate_from_ui(
     lighting: str,
     mood: str,
     negative_prompt: str,
+    duration_seconds: float,
+    fps: int,
     num_frames: int,
     steps: int,
     guidance_scale: float,
-    fps: int,
     output_long_edge: int,
     enable_deflicker: bool,
+    enable_sharpen: bool,
+    quality_profile: str,
     seed: int,
 ) -> tuple[str | None, str]:
     LOGGER.info(
-        "Gradio generation request received. prompt_len=%d num_frames=%s steps=%s fps=%s guidance_scale=%s seed=%s output_long_edge=%s deflicker=%s",
+        "Gradio generation request received. prompt_len=%d num_frames=%s steps=%s fps=%s guidance_scale=%s seed=%s output_long_edge=%s deflicker=%s sharpen=%s profile=%s duration=%s",
         len(prompt or ""),
         num_frames,
         steps,
@@ -40,6 +57,9 @@ def _generate_from_ui(
         seed,
         output_long_edge,
         enable_deflicker,
+        enable_sharpen,
+        quality_profile,
+        duration_seconds,
     )
     manager = get_pipeline_manager()
 
@@ -61,6 +81,8 @@ def _generate_from_ui(
             num_inference_steps=int(steps),
             fps=int(fps),
             seed=use_seed,
+            duration_seconds=float(duration_seconds) if duration_seconds is not None else None,
+            quality_profile=quality_profile,
             subject=subject,
             action=action,
             camera_motion=camera_motion,
@@ -70,6 +92,7 @@ def _generate_from_ui(
             negative_prompt=negative_prompt,
             output_long_edge=int(output_long_edge),
             enable_deflicker=bool(enable_deflicker),
+            enable_sharpen=bool(enable_sharpen),
         )
     except Exception as exc:
         LOGGER.exception("Gradio generation failed")
@@ -90,6 +113,9 @@ def _generate_from_ui(
 
 def build_gradio_app() -> gr.Blocks:
     ensure_directories()
+    profile_default = (
+        settings.quality_profile if settings.quality_profile in {"low", "balanced", "high"} else "balanced"
+    )
 
     with gr.Blocks(title="HunyuanVideo-I2V") as demo:
         gr.Markdown(
@@ -101,94 +127,111 @@ def build_gradio_app() -> gr.Blocks:
 
         with gr.Row():
             with gr.Column(scale=1):
-                image_input = gr.Image(type="pil", label="Starting Image")
-                subject_input = gr.Dropdown(
-                    choices=PROMPT_FIELD_OPTIONS["subject"],
-                    label="Subject",
-                    allow_custom_value=True,
-                    value="",
-                )
-                action_input = gr.Dropdown(
-                    choices=PROMPT_FIELD_OPTIONS["action"],
-                    label="Action",
-                    allow_custom_value=True,
-                    value="",
-                )
-                camera_input = gr.Dropdown(
-                    choices=PROMPT_FIELD_OPTIONS["camera_motion"],
-                    label="Camera Motion",
-                    allow_custom_value=True,
-                    value="",
-                )
-                shot_input = gr.Dropdown(
-                    choices=PROMPT_FIELD_OPTIONS["shot_type"],
-                    label="Shot Type",
-                    allow_custom_value=True,
-                    value="",
-                )
-                lighting_input = gr.Dropdown(
-                    choices=PROMPT_FIELD_OPTIONS["lighting"],
-                    label="Lighting",
-                    allow_custom_value=True,
-                    value="",
-                )
-                mood_input = gr.Dropdown(
-                    choices=PROMPT_FIELD_OPTIONS["mood"],
-                    label="Mood",
-                    allow_custom_value=True,
-                    value="",
-                )
+                image_input = gr.Image(type="pil", label="Starting Image (aspect preserved)")
                 prompt_input = gr.Textbox(
-                    label="Prompt",
+                    label="Prompt (describe the motion, action, and scene)",
                     lines=4,
                     placeholder="Describe motion, animation, and scene changes...",
                 )
                 negative_prompt_input = gr.Textbox(
-                    label="Negative Prompt",
+                    label="Negative Prompt (things to avoid)",
                     value=settings.default_negative_prompt,
                     lines=3,
                 )
-                output_long_edge_input = gr.Dropdown(
-                    choices=settings.output_long_edge_options,
-                    value=settings.default_output_long_edge,
-                    label="Output Long Edge (px)",
+                subject_input = gr.Dropdown(
+                    choices=PROMPT_FIELD_OPTIONS["subject"],
+                    label="Subject (main focus)",
+                    allow_custom_value=True,
+                    value="person",
                 )
-                deflicker_input = gr.Checkbox(
-                    value=settings.enable_deflicker,
-                    label="Enable Deflicker",
+                action_input = gr.Dropdown(
+                    choices=PROMPT_FIELD_OPTIONS["action"],
+                    label="Action (what happens)",
+                    allow_custom_value=True,
+                    value="still",
                 )
-                frames_input = gr.Number(
-                    minimum=settings.min_num_frames,
-                    value=settings.default_num_frames,
-                    precision=0,
-                    label="Frames (duration ~= frames / FPS)",
+                camera_input = gr.Dropdown(
+                    choices=PROMPT_FIELD_OPTIONS["camera_motion"],
+                    label="Camera Motion (camera movement)",
+                    allow_custom_value=True,
+                    value="static",
                 )
-                steps_input = gr.Slider(
-                    minimum=settings.min_inference_steps,
-                    maximum=settings.max_inference_steps,
-                    value=settings.default_num_inference_steps,
-                    step=1,
-                    label="Inference Steps",
+                shot_input = gr.Dropdown(
+                    choices=PROMPT_FIELD_OPTIONS["shot_type"],
+                    label="Shot Type (framing)",
+                    allow_custom_value=True,
+                    value="medium",
                 )
-                guidance_input = gr.Slider(
-                    minimum=settings.min_guidance_scale,
-                    maximum=settings.max_guidance_scale,
-                    value=settings.default_guidance_scale,
-                    step=0.1,
-                    label="Guidance Scale",
+                lighting_input = gr.Dropdown(
+                    choices=PROMPT_FIELD_OPTIONS["lighting"],
+                    label="Lighting (scene light)",
+                    allow_custom_value=True,
+                    value="soft daylight",
+                )
+                mood_input = gr.Dropdown(
+                    choices=PROMPT_FIELD_OPTIONS["mood"],
+                    label="Mood (style/energy)",
+                    allow_custom_value=True,
+                    value="cinematic",
+                )
+                duration_input = gr.Number(
+                    minimum=1,
+                    value=settings.default_duration_seconds,
+                    precision=2,
+                    label="Duration (seconds)",
                 )
                 fps_input = gr.Slider(
                     minimum=settings.min_fps,
                     maximum=settings.max_fps,
                     value=settings.default_fps,
                     step=1,
-                    label="FPS",
+                    label="FPS (smoothness)",
                 )
-                seed_input = gr.Number(
-                    label="Seed (-1 for random)",
-                    value=-1,
+                frames_input = gr.Number(
+                    minimum=settings.min_num_frames,
+                    value=settings.default_num_frames,
                     precision=0,
+                    interactive=False,
+                    label="Frames (auto = duration × FPS)",
                 )
+                with gr.Accordion("Advanced Settings", open=False):
+                    steps_input = gr.Slider(
+                        minimum=settings.min_inference_steps,
+                        maximum=settings.max_inference_steps,
+                        value=settings.default_num_inference_steps,
+                        step=1,
+                        label="Inference Steps (quality vs speed)",
+                    )
+                    guidance_input = gr.Slider(
+                        minimum=settings.min_guidance_scale,
+                        maximum=settings.max_guidance_scale,
+                        value=settings.default_guidance_scale,
+                        step=0.1,
+                        label="Guidance Scale (prompt strength)",
+                    )
+                    output_long_edge_input = gr.Dropdown(
+                        choices=settings.output_long_edge_options,
+                        value=settings.default_output_long_edge,
+                        label="Output Long Edge (px, aspect preserved)",
+                    )
+                    deflicker_input = gr.Checkbox(
+                        value=settings.enable_deflicker,
+                        label="Enable Deflicker (reduce flicker, may soften motion)",
+                    )
+                    sharpen_input = gr.Checkbox(
+                        value=settings.enable_sharpen,
+                        label="Enable Sharpen (restore crispness)",
+                    )
+                    quality_profile_input = gr.Dropdown(
+                        choices=["low", "balanced", "high"],
+                        value=profile_default,
+                        label="Quality Profile (caps for stability)",
+                    )
+                    seed_input = gr.Number(
+                        label="Seed (-1 for random, fixed for repeatability)",
+                        value=-1,
+                        precision=0,
+                    )
                 run_button = gr.Button("Generate Video", variant="primary")
 
             with gr.Column(scale=1):
@@ -207,15 +250,29 @@ def build_gradio_app() -> gr.Blocks:
                 lighting_input,
                 mood_input,
                 negative_prompt_input,
+                duration_input,
+                fps_input,
                 frames_input,
                 steps_input,
                 guidance_input,
-                fps_input,
                 output_long_edge_input,
                 deflicker_input,
+                sharpen_input,
+                quality_profile_input,
                 seed_input,
             ],
             outputs=[video_output, status_output],
+        )
+
+        duration_input.change(
+            fn=_compute_frames,
+            inputs=[duration_input, fps_input],
+            outputs=frames_input,
+        )
+        fps_input.change(
+            fn=_compute_frames,
+            inputs=[duration_input, fps_input],
+            outputs=frames_input,
         )
 
     demo.queue(

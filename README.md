@@ -244,7 +244,7 @@ Output long-edge presets: `720`, `1080`, `1440` (aspect ratio derived from the i
 - CPU offload defaults:
   - `ENABLE_SEQUENTIAL_CPU_OFFLOAD=0`
   - `ENABLE_MODEL_CPU_OFFLOAD=1`
-- Gradio UI uses a free-form `Frames` input (no UI max cap). Duration is `frames / fps`.
+- Gradio UI uses duration + FPS to auto-compute frames (`frames = duration × fps`); frame count is capped by quality profile at runtime.
 - Progress logs in `logs/hunyuan_app.log`:
   - `PROGRESS_LOG_EVERY_STEPS=1`
   - `PROGRESS_BAR_WIDTH=24`

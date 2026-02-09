@@ -61,8 +61,8 @@ class Settings:
         self.gradio_host = os.getenv("GRADIO_SERVER_NAME", "0.0.0.0")
         self.gradio_port = int(os.getenv("GRADIO_SERVER_PORT", "7860"))
 
-        self.default_fps = int(os.getenv("DEFAULT_FPS", "24"))
-        self.default_duration_seconds = int(os.getenv("DEFAULT_DURATION_SECONDS", "6"))
+        self.default_fps = int(os.getenv("DEFAULT_FPS", "16"))
+        self.default_duration_seconds = int(os.getenv("DEFAULT_DURATION_SECONDS", "10"))
         self.default_num_frames = int(
             os.getenv("DEFAULT_NUM_FRAMES", str(self.default_fps * self.default_duration_seconds))
         )

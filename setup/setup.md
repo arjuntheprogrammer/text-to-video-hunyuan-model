@@ -86,8 +86,8 @@ AUTO_MAX_INPUT_SIDE=1 \
 MAX_INPUT_IMAGE_SIDE=auto \
 OOM_SAFE_NUM_FRAMES=32 \
 OOM_SAFE_STEPS=12 \
-DEFAULT_FPS=24 \
-DEFAULT_DURATION_SECONDS=6 \
+DEFAULT_FPS=16 \
+DEFAULT_DURATION_SECONDS=10 \
 DEFAULT_NUM_INFERENCE_STEPS=45 \
 DEFAULT_GUIDANCE_SCALE=7.5 \
 MAX_PROMPT_WORDS=60 \
@@ -138,7 +138,7 @@ INSTALL_VSCODE_EXTENSIONS=0 ./setup/setup.sh
 - Output video is resized to the selected long-edge preset while preserving input aspect ratio.
 - Deflicker post-processing is disabled by default; toggle via `ENABLE_DEFLICKER` or the API parameter.
 - Optional sharpening can be enabled via `ENABLE_SHARPEN` to recover crisp motion.
-- Gradio uses a free-form `Frames` input so duration is not UI-capped (`duration = frames / fps`).
+- Gradio uses duration + FPS to auto-compute frames (`frames = duration × fps`); frame count is capped by quality profile at runtime.
 - Model loading is local-only by default. If local files are missing, `ALLOW_REMOTE_FALLBACK=1` lets it download as a fallback.
 - Prompt enhancement is enabled by default:
   - builds a structured prompt from dropdown fields + user text

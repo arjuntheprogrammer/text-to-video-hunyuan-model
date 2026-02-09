@@ -236,12 +236,13 @@ curl -O "http://localhost:8000/outputs/<filename>.mp4"
 
 ## Performance Notes (L40S)
 
-Measured on a single NVIDIA L40S (48GB) with captioning enabled (on-demand GPU load/unload), CPU offload enabled, and `MAX_INPUT_IMAGE_SIDE=384` (internal resolution ~288x384; output resized to 540x720).
+Measured on a single NVIDIA L40S (48GB) with captioning enabled (on-demand GPU load/unload), CPU offload enabled, and `MAX_INPUT_IMAGE_SIDE=384`. Short clips may start at higher input resolutions when `PREFER_HIGH_RES=1`.
 
 | Scenario | Frames / FPS | Steps | Output Long Edge | Captioning | Total Time |
 | --- | --- | --- | --- | --- | --- |
 | 6s sample (tests/samples/02) | 96 / 16 | 16 | 720 | enabled | ~68s |
 | 20s sample (tests/samples/02) | 320 / 16 | 16 | 720 | enabled | ~263s |
+| 10s face edit (dp_arjun_gupta.png) | 80 / 8 | 16 | 1080 | enabled | ~396s |
 
 Notes:
 - Times include caption generation + video encode.

@@ -143,7 +143,7 @@ if [[ "${ZSH_SETUP_ENABLED}" == "1" ]]; then
       zshrc="${ZSH_SETUP_HOME}/.zshrc"
       if [[ ! -f "${zshrc}" ]]; then
         log "Creating ${zshrc}."
-        run_as_user "${ZSH_SETUP_USER}" "printf '%s\n' \"export ZSH=\\\"${ZSH_DIR}\\\"\" 'ZSH_THEME=\"robbyrussell\"' 'plugins=(git)' 'source \\$ZSH/oh-my-zsh.sh' > '${zshrc}'"
+        run_as_user "${ZSH_SETUP_USER}" "printf '%s\n' \"export ZSH=\\\"${ZSH_DIR}\\\"\" 'ZSH_THEME=\"robbyrussell\"' 'plugins=(git)' 'source ${ZSH_DIR}/oh-my-zsh.sh' > '${zshrc}'"
       fi
 
       plugins_dir="${ZSH_DIR}/custom/plugins"
@@ -162,6 +162,16 @@ if [[ "${ZSH_SETUP_ENABLED}" == "1" ]]; then
       else
         log "zsh-syntax-highlighting already installed; skipping."
       fi
+
+      run_as_user "${ZSH_SETUP_USER}" "if ! grep -q 'oh-my-zsh.sh' '${zshrc}'; then
+        if ! grep -q '^export ZSH=' '${zshrc}'; then
+          printf '\nexport ZSH=\"%s\"\\n' '${ZSH_DIR}' >> '${zshrc}'
+        fi
+        if ! grep -q '^ZSH_THEME=' '${zshrc}'; then
+          printf 'ZSH_THEME=\"robbyrussell\"\\n' >> '${zshrc}'
+        fi
+        printf 'source ${ZSH_DIR}/oh-my-zsh.sh\n' >> '${zshrc}'
+      fi"
 
       run_as_user "${ZSH_SETUP_USER}" "if grep -q '^plugins=' '${zshrc}'; then
         if ! grep -q 'zsh-autosuggestions' '${zshrc}'; then

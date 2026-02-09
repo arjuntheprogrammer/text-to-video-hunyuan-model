@@ -391,19 +391,29 @@ class HunyuanVideoPipelineManager:
         )
         safe_guidance = max(settings.min_guidance_scale, min(settings.max_guidance_scale, guidance_scale))
         LOGGER.info(
-            "Generation input. image_source=%s prompt=%s negative_prompt=%s fps=%s frames=%s steps=%s guidance=%.2f profile=%s duration=%s",
-            image_source or "unknown",
-            prompt,
-            negative_prompt or "",
-            safe_fps,
-            safe_num_frames,
-            safe_steps,
-            safe_guidance,
-            profile.name,
-            duration_seconds,
+            "Generation input received.",
+            extra={
+                "image_source": image_source or "unknown",
+                "prompt": prompt,
+                "negative_prompt": negative_prompt or "",
+                "fps": safe_fps,
+                "frames": safe_num_frames,
+                "steps": safe_steps,
+                "guidance_scale": safe_guidance,
+                "quality_profile": profile.name,
+                "duration_seconds": duration_seconds,
+            },
         )
         source_image = image.convert("RGB")
         caption = caption_image(source_image) if settings.enable_captioning else None
+        if caption:
+            LOGGER.info(
+                "Caption generated.",
+                extra={
+                    "image_source": image_source or "unknown",
+                    "caption": caption,
+                },
+            )
         effective_prompt, resolved_negative_prompt = self._build_effective_prompts(
             user_prompt=prompt,
             caption=caption,
@@ -460,9 +470,11 @@ class HunyuanVideoPipelineManager:
             len(resolved_negative_prompt or ""),
         )
         LOGGER.info(
-            "Effective prompt output. effective_prompt=%s resolved_negative_prompt=%s",
-            effective_prompt,
-            resolved_negative_prompt or "",
+            "Effective prompt output.",
+            extra={
+                "effective_prompt": effective_prompt,
+                "resolved_negative_prompt": resolved_negative_prompt or "",
+            },
         )
 
         original_size = source_image.size
@@ -716,15 +728,19 @@ class HunyuanVideoPipelineManager:
         except OSError:
             size_mb = None
         LOGGER.info(
-            "Video output complete. output_path=%s size_mb=%s duration=%.2fs elapsed=%.2fs output_resolution=%sx%s fps=%s frames=%s",
-            output_path,
-            f\"{size_mb:.2f}\" if size_mb is not None else \"unknown\",
-            duration_seconds,
-            elapsed,
-            output_width,
-            output_height,
-            safe_fps,
-            len(frames),
+            "Video output complete.",
+            extra={
+                "output_path": str(output_path),
+                "size_mb": round(size_mb, 2) if size_mb is not None else None,
+                "duration_seconds": duration_seconds,
+                "elapsed_seconds": elapsed,
+                "output_resolution_width": output_width,
+                "output_resolution_height": output_height,
+                "fps": safe_fps,
+                "frames": len(frames),
+                "seed": used_seed,
+                "guidance_scale": safe_guidance,
+            },
         )
         LOGGER.info(
             "Pipeline generation completed. output=%s resolution=%sx%s generated_frames=%d requested_frames=%d used_steps=%d elapsed=%.2fs",

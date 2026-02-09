@@ -103,9 +103,10 @@ MAX_INPUT_SIDE_BY_PROFILE=low:768,balanced:1024,high:1280 \
 ENABLE_SHARPEN=0 \
 SHARPEN_STRENGTH=0.35 \
 ENABLE_CAPTIONING=1 \
-CAPTION_MODEL_ID=Salesforce/blip2-opt-2.7b \
-CAPTION_DEVICE=cpu \
+CAPTION_MODEL_ID=nlpconnect/vit-gpt2-image-captioning \
+CAPTION_DEVICE=cuda \
 CAPTION_MAX_TOKENS=40 \
+CAPTION_UNLOAD_AFTER_USE=1 \
 ENABLE_SEQUENTIAL_CPU_OFFLOAD=0 \
 ENABLE_MODEL_CPU_OFFLOAD=1 \
 ENABLE_XFORMERS=0 \
@@ -142,7 +143,7 @@ INSTALL_VSCODE_EXTENSIONS=0 ./setup/setup.sh
 - Model loading is local-only by default. If local files are missing, `ALLOW_REMOTE_FALLBACK=1` lets it download as a fallback.
 - Prompt enhancement is enabled by default:
   - builds a structured prompt from dropdown fields + user text
-  - optionally prepends a BLIP-2 caption for better identity anchoring
+  - optionally prepends a caption (ViT-GPT2) for better identity anchoring
   - appends realism instructions to user prompt
   - applies negative prompt terms to reduce flicker/fade/morph artifacts
   - optional overrides: `DEFAULT_PROMPT_SUFFIX`, `DEFAULT_NEGATIVE_PROMPT`
@@ -150,6 +151,10 @@ INSTALL_VSCODE_EXTENSIONS=0 ./setup/setup.sh
   - first attempt uses user-requested frames/steps at highest allowed resolution
   - frame/step and resolution are downgraded only after OOM
 - Quality profiles cap max frames/steps/input side for stability (`low`, `balanced`, `high`). Configure via `QUALITY_PROFILE`, `MAX_FRAMES_BY_PROFILE`, `MAX_STEPS_BY_PROFILE`, `MAX_INPUT_SIDE_BY_PROFILE`.
+- Captioning defaults:
+  - `CAPTION_MODEL_ID=nlpconnect/vit-gpt2-image-captioning`
+  - `CAPTION_DEVICE=cuda`
+  - `CAPTION_UNLOAD_AFTER_USE=1` (load on-demand, unload after each request)
 
 ## Structured prompt dropdowns
 

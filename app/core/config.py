@@ -159,9 +159,13 @@ class Settings:
         self.strength = _optional_float_env("STRENGTH")
 
         self.enable_captioning = _bool_env("ENABLE_CAPTIONING", "1")
-        self.caption_model_id = os.getenv("CAPTION_MODEL_ID", "Salesforce/blip2-opt-2.7b")
-        self.caption_device = os.getenv("CAPTION_DEVICE", "cpu")
+        self.caption_model_id = os.getenv(
+            "CAPTION_MODEL_ID",
+            "nlpconnect/vit-gpt2-image-captioning",
+        )
+        self.caption_device = os.getenv("CAPTION_DEVICE", "cuda")
         self.caption_max_tokens = int(os.getenv("CAPTION_MAX_TOKENS", "40"))
+        self.caption_unload_after_use = _bool_env("CAPTION_UNLOAD_AFTER_USE", "1")
 
 
 settings = Settings()

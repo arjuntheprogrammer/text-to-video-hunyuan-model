@@ -98,7 +98,7 @@ flowchart TB
 
     subgraph S5["5) Pipeline (services)"]
         Manager["services/pipeline_manager.generate_video"]:::compute
-        Caption["services/captioning (BLIP-2 optional)"]:::compute
+        Caption["services/captioning (ViT-GPT2 optional)"]:::compute
         Prompt["services/prompt_builder (structured prompt)"]:::util
         Truncate["token + word truncation"]:::util
         Profile["services/quality_profiles caps"]:::util
@@ -235,7 +235,7 @@ Output long-edge presets: `720`, `1080`, `1440` (aspect ratio derived from the i
 - If `duration_seconds` is provided (API or UI), `num_frames` is derived from `duration_seconds × fps` and then capped by the selected quality profile.
 - Prompt enhancement defaults:
   - builds a structured prompt from dropdown fields + user text
-  - optionally prepends a BLIP-2 caption for better identity anchoring
+  - optionally prepends a caption (ViT-GPT2) for better identity anchoring
   - appends an internal realism suffix to the user prompt
   - applies a default negative prompt to reduce flicker/fade/morph artifacts (can be overridden)
   - enforces word limits to avoid CLIP token overflow (override via `MAX_PROMPT_WORDS`, `MAX_NEGATIVE_PROMPT_WORDS`)
@@ -245,6 +245,10 @@ Output long-edge presets: `720`, `1080`, `1440` (aspect ratio derived from the i
 - CPU offload defaults:
   - `ENABLE_SEQUENTIAL_CPU_OFFLOAD=0`
   - `ENABLE_MODEL_CPU_OFFLOAD=1`
+- Captioning defaults:
+  - `CAPTION_MODEL_ID=nlpconnect/vit-gpt2-image-captioning`
+  - `CAPTION_DEVICE=cuda`
+  - `CAPTION_UNLOAD_AFTER_USE=1` (load on-demand, unload after each request)
 - Gradio UI uses duration + FPS to auto-compute frames (`frames = duration × fps`); frame count is capped by quality profile at runtime.
 - Progress logs in `logs/hunyuan_app.log`:
   - `PROGRESS_LOG_EVERY_STEPS=1`

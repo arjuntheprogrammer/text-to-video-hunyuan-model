@@ -90,6 +90,8 @@ class Settings:
         self.enable_sequential_cpu_offload = _bool_env("ENABLE_SEQUENTIAL_CPU_OFFLOAD", "0")
         self.enable_model_cpu_offload = _bool_env("ENABLE_MODEL_CPU_OFFLOAD", "1")
         self.enable_xformers = _bool_env("ENABLE_XFORMERS", "0")
+        self.local_files_only = _bool_env("LOCAL_FILES_ONLY", "1")
+        self.allow_remote_fallback = _bool_env("ALLOW_REMOTE_FALLBACK", "1")
         self.enable_deflicker = _bool_env("ENABLE_DEFLICKER", "1")
         self.deflicker_window = int(os.getenv("DEFLICKER_WINDOW", "3"))
         if self.deflicker_window < 1:

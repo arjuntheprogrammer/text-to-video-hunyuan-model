@@ -66,38 +66,54 @@ class HunyuanVideoPipelineManager:
                 "HF_TOKEN is not set. Model download/load may fail for gated repositories."
             )
         try:
+            def _load_with(local_only: bool) -> Any:
+                try:
+                    from diffusers import (
+                        HunyuanVideoImageToVideoPipeline,
+                        HunyuanVideoTransformer3DModel,
+                    )
+
+                    transformer_dtype = torch.bfloat16 if self.device == "cuda" else torch.float32
+                    transformer = HunyuanVideoTransformer3DModel.from_pretrained(
+                        settings.model_id,
+                        subfolder="transformer",
+                        torch_dtype=transformer_dtype,
+                        cache_dir=str(settings.models_dir),
+                        token=token,
+                        local_files_only=local_only,
+                    )
+
+                    return HunyuanVideoImageToVideoPipeline.from_pretrained(
+                        settings.model_id,
+                        transformer=transformer,
+                        torch_dtype=self.dtype,
+                        cache_dir=str(settings.models_dir),
+                        token=token,
+                        local_files_only=local_only,
+                    )
+                except ImportError:
+                    from diffusers import DiffusionPipeline
+
+                    return DiffusionPipeline.from_pretrained(
+                        settings.model_id,
+                        torch_dtype=self.dtype,
+                        cache_dir=str(settings.models_dir),
+                        trust_remote_code=True,
+                        token=token,
+                        local_files_only=local_only,
+                    )
+
             try:
-                from diffusers import (
-                    HunyuanVideoImageToVideoPipeline,
-                    HunyuanVideoTransformer3DModel,
-                )
-
-                transformer_dtype = torch.bfloat16 if self.device == "cuda" else torch.float32
-                transformer = HunyuanVideoTransformer3DModel.from_pretrained(
-                    settings.model_id,
-                    subfolder="transformer",
-                    torch_dtype=transformer_dtype,
-                    cache_dir=str(settings.models_dir),
-                    token=token,
-                )
-
-                self.pipe = HunyuanVideoImageToVideoPipeline.from_pretrained(
-                    settings.model_id,
-                    transformer=transformer,
-                    torch_dtype=self.dtype,
-                    cache_dir=str(settings.models_dir),
-                    token=token,
-                )
-            except ImportError:
-                from diffusers import DiffusionPipeline
-
-                self.pipe = DiffusionPipeline.from_pretrained(
-                    settings.model_id,
-                    torch_dtype=self.dtype,
-                    cache_dir=str(settings.models_dir),
-                    trust_remote_code=True,
-                    token=token,
-                )
+                self.pipe = _load_with(settings.local_files_only)
+            except Exception as exc:
+                if settings.local_files_only and settings.allow_remote_fallback:
+                    LOGGER.warning(
+                        "Local-only model load failed; retrying with remote fallback. error=%s",
+                        exc,
+                    )
+                    self.pipe = _load_with(False)
+                else:
+                    raise
             try:
                 self._pipe_call_arg_names = set(inspect.signature(self.pipe.__call__).parameters.keys())
             except Exception:  # pragma: no cover

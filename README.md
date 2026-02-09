@@ -239,6 +239,7 @@ Output long-edge presets: `720`, `1080`, `1440` (aspect ratio derived from the i
   - applies a default negative prompt to reduce flicker/fade/morph artifacts (can be overridden)
   - enforces word limits to avoid CLIP token overflow (override via `MAX_PROMPT_WORDS`, `MAX_NEGATIVE_PROMPT_WORDS`)
 - Deflicker post-processing is enabled by default; toggle via `ENABLE_DEFLICKER` or the API parameter.
+- Model loading is local-only by default. If local files are missing, `ALLOW_REMOTE_FALLBACK=1` lets it download as a fallback.
 - CPU offload defaults:
   - `ENABLE_SEQUENTIAL_CPU_OFFLOAD=0`
   - `ENABLE_MODEL_CPU_OFFLOAD=1`

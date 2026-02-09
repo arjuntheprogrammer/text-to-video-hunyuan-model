@@ -132,6 +132,7 @@ INSTALL_VSCODE_EXTENSIONS=0 ./setup/setup.sh
 - Output video is resized to the selected long-edge preset while preserving input aspect ratio.
 - Deflicker post-processing is enabled by default; toggle via `ENABLE_DEFLICKER` or the API parameter.
 - Gradio uses a free-form `Frames` input so duration is not UI-capped (`duration = frames / fps`).
+- Model loading is local-only by default. If local files are missing, `ALLOW_REMOTE_FALLBACK=1` lets it download as a fallback.
 - Prompt enhancement is enabled by default:
   - builds a structured prompt from dropdown fields + user text
   - optionally prepends a BLIP-2 caption for better identity anchoring

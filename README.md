@@ -55,19 +55,20 @@ docker compose up --build
 ## Project Flow (Mermaid)
 
 ```mermaid
-flowchart LR
-    %% Sequential project flow for HunyuanVideo-I2V
+flowchart TB
+    %% Detailed, top-to-bottom flow for HunyuanVideo-I2V
     classDef step fill:#0f172a,stroke:#38bdf8,stroke-width:1.5px,color:#e2e8f0
     classDef io fill:#1f2937,stroke:#f59e0b,stroke-width:1.5px,color:#fef3c7
     classDef compute fill:#052e16,stroke:#22c55e,stroke-width:1.5px,color:#ecfdf5
     classDef store fill:#312e81,stroke:#a5b4fc,stroke-width:1.5px,color:#eef2ff
     classDef util fill:#0b2f33,stroke:#2dd4bf,stroke-width:1.5px,color:#ecfeff
 
-    subgraph S1["1) Setup"]
-        Env[".env (HF_TOKEN + overrides)"]:::util
+    subgraph S1["1) Setup & Environment"]
         Conda["setup/setup.sh (conda-native)"]:::step
         Docker["docker-compose.yml (optional)"]:::step
-        Conda --> Env
+        Env[".env (HF_TOKEN + overrides)"]:::util
+        Paths["models/, outputs/, logs/ created"]:::util
+        Conda --> Env --> Paths
         Docker --> Env
     end
 
@@ -75,39 +76,62 @@ flowchart LR
         Dotenv["dotenv.load_dotenv(override=True)"]:::util
         Log["core/logging.configure_logging"]:::util
         Dirs["utils/common.ensure_directories"]:::util
+        Settings["core/config.Settings (env -> defaults)"]:::util
         API["uvicorn -> api/app.py"]:::step
         UI["ui/gradio_app.py"]:::step
-        Dotenv --> Log --> Dirs --> API
+        Dotenv --> Settings --> Log --> Dirs --> API
         Dirs --> UI
     end
 
-    subgraph S3["3) Request"]
-        APIReq["REST POST /generate"]:::io
+    subgraph S3["3) Requests"]
+        Health["GET /health"]:::io
+        Generate["POST /generate"]:::io
         UIReq["Gradio Generate"]:::io
+        OutputsGet["GET /outputs/{filename}"]:::io
     end
 
-    subgraph S4["4) Pipeline (services)"]
-        Validate["input validation + decode"]:::util
-        Manager["pipeline_manager.generate_video"]:::compute
-        Caption["captioning (BLIP-2 optional)"]:::compute
-        Prompt["prompt_builder + truncation"]:::util
-        Profile["quality_profiles caps"]:::util
-        Diffusers["diffusers HunyuanVideo I2V"]:::compute
-        Post["media/video: resize, deflicker, sharpen, encode"]:::compute
+    subgraph S4["4) API / UI Validation"]
+        Parse["decode image + validate inputs"]:::util
+        Duration["duration_seconds -> frames (fps)"]:::util
+        Clamp["clamp frames/steps/fps/guidance"]:::util
     end
 
-    subgraph S5["5) Outputs"]
+    subgraph S5["5) Pipeline (services)"]
+        Manager["services/pipeline_manager.generate_video"]:::compute
+        Caption["services/captioning (BLIP-2 optional)"]:::compute
+        Prompt["services/prompt_builder (structured prompt)"]:::util
+        Truncate["token + word truncation"]:::util
+        Profile["services/quality_profiles caps"]:::util
+        Load["diffusers pipeline load (local-only + fallback)"]:::compute
+        OOM["OOM retry ladder (res/frames/steps)"]:::compute
+        Diffusers["HunyuanVideo I2V inference"]:::compute
+    end
+
+    subgraph S6["6) Post-Processing (media/video)"]
+        Resize["compute_target_size + resize/pad"]:::compute
+        Deflicker["deflicker (optional)"]:::compute
+        Sharpen["sharpen (optional)"]:::compute
+        Encode["save_frames_to_mp4"]:::compute
+    end
+
+    subgraph S7["7) Persistence & Responses"]
         Outputs["outputs/ (mp4)"]:::store
         Logs["logs/ (hunyuan_app.log, health)"]:::store
         Models["models/ (HF cache)"]:::store
+        Response["GenerateResponse (output_url + metadata)"]:::io
     end
 
+    %% Cross-stage flow
     Env --> Dotenv
-    API --> APIReq --> Validate --> Manager
+    API --> Health
+    API --> Generate --> Parse --> Duration --> Clamp --> Manager
     UI --> UIReq --> Manager
-    Manager --> Caption --> Prompt --> Profile --> Diffusers --> Post --> Outputs
+    Manager --> Caption --> Prompt --> Truncate --> Profile --> Load --> OOM --> Diffusers
+    Diffusers --> Resize --> Deflicker --> Sharpen --> Encode --> Outputs --> OutputsGet
     Log --> Logs
     Dirs --> Models
+    Health --> Logs
+    Encode --> Response
 ```
 
 ## File & Folder Structure

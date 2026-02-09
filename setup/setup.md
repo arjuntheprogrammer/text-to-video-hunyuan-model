@@ -96,6 +96,10 @@ DEFAULT_OUTPUT_LONG_EDGE=1080 \
 OUTPUT_LONG_EDGE_OPTIONS=720,1080,1440 \
 ENABLE_DEFLICKER=1 \
 DEFLICKER_WINDOW=3 \
+QUALITY_PROFILE=balanced \
+MAX_FRAMES_BY_PROFILE=low:160,balanced:320,high:320 \
+MAX_STEPS_BY_PROFILE=low:20,balanced:28,high:32 \
+MAX_INPUT_SIDE_BY_PROFILE=low:768,balanced:1024,high:1280 \
 ENABLE_CAPTIONING=1 \
 CAPTION_MODEL_ID=Salesforce/blip2-opt-2.7b \
 CAPTION_DEVICE=cpu \
@@ -142,6 +146,7 @@ INSTALL_VSCODE_EXTENSIONS=0 ./setup/setup.sh
 - Generation retry behavior:
   - first attempt uses user-requested frames/steps at highest allowed resolution
   - frame/step and resolution are downgraded only after OOM
+- Quality profiles cap max frames/steps/input side for stability (`low`, `balanced`, `high`). Configure via `QUALITY_PROFILE`, `MAX_FRAMES_BY_PROFILE`, `MAX_STEPS_BY_PROFILE`, `MAX_INPUT_SIDE_BY_PROFILE`.
 
 ## Structured prompt dropdowns
 

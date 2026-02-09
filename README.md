@@ -248,6 +248,7 @@ Output long-edge presets: `720`, `1080`, `1440` (aspect ratio derived from the i
   - `PROGRESS_LOG_EVERY_STEPS=1`
   - `PROGRESS_BAR_WIDTH=24`
 - First startup may take a long time due to model download.
+- Quality profiles cap max frames/steps/input side for stability (`low`, `balanced`, `high`). Set `QUALITY_PROFILE` and override caps via `MAX_FRAMES_BY_PROFILE`, `MAX_STEPS_BY_PROFILE`, `MAX_INPUT_SIDE_BY_PROFILE`.
 
 ## Persistence
 - `./models` stores model/cache files

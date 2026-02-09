@@ -13,6 +13,7 @@ from PIL import Image
 from app.services.captioning import caption_image
 from app.core.config import settings
 from app.services.prompt_builder import build_structured_prompt
+from app.services.quality_profiles import get_quality_profile
 from app.utils.common import clamp_int, ensure_directories
 from app.media.video import compute_target_size, save_frames_to_mp4
 
@@ -166,12 +167,14 @@ class HunyuanVideoPipelineManager:
             self.load_error = str(exc)
             LOGGER.exception("Failed to load model pipeline: %s", exc)
 
-    def _resolve_max_input_side(self) -> int:
+    def _resolve_max_input_side(self, cap: int | None = None) -> int:
         if not settings.auto_max_input_side or settings.max_input_image_side_override:
-            return settings.max_input_image_side
+            resolved = settings.max_input_image_side
+            return min(resolved, cap) if cap else resolved
 
         if self._auto_max_input_side is not None:
-            return self._auto_max_input_side
+            resolved = self._auto_max_input_side
+            return min(resolved, cap) if cap else resolved
 
         max_side = settings.max_input_image_side
         if self.device == "cuda":
@@ -190,7 +193,7 @@ class HunyuanVideoPipelineManager:
 
         self._auto_max_input_side = max_side
         LOGGER.info("Auto max input side resolved to %s", max_side)
-        return max_side
+        return min(max_side, cap) if cap else max_side
 
     def _build_effective_prompts(
         self,
@@ -355,6 +358,8 @@ class HunyuanVideoPipelineManager:
         num_inference_steps: int,
         fps: int,
         seed: int | None,
+        duration_seconds: float | None = None,
+        quality_profile: str | None = None,
         subject: str | None = None,
         action: str | None = None,
         camera_motion: str | None = None,
@@ -370,13 +375,18 @@ class HunyuanVideoPipelineManager:
                 f"Model is not available. Load error: {self.load_error or 'unknown error'}"
             )
 
-        safe_num_frames = clamp_int(num_frames, settings.min_num_frames, settings.max_num_frames)
+        profile = get_quality_profile(quality_profile)
+        safe_fps = clamp_int(fps, settings.min_fps, settings.max_fps)
+        if duration_seconds is not None and duration_seconds > 0:
+            num_frames = int(round(duration_seconds * safe_fps))
+        max_frames_cap = min(settings.max_num_frames, profile.max_frames)
+        max_steps_cap = min(settings.max_inference_steps, profile.max_steps)
+        safe_num_frames = clamp_int(num_frames, settings.min_num_frames, max_frames_cap)
         safe_steps = clamp_int(
             num_inference_steps,
             settings.min_inference_steps,
-            settings.max_inference_steps,
+            max_steps_cap,
         )
-        safe_fps = clamp_int(fps, settings.min_fps, settings.max_fps)
         safe_guidance = max(settings.min_guidance_scale, min(settings.max_guidance_scale, guidance_scale))
         source_image = image.convert("RGB")
         caption = caption_image(source_image) if settings.enable_captioning else None
@@ -454,7 +464,7 @@ class HunyuanVideoPipelineManager:
         attempted_profiles: list[str] = []
 
         original_max_side = max(original_size)
-        max_input_side = self._resolve_max_input_side()
+        max_input_side = self._resolve_max_input_side(cap=profile.max_side)
         highest_allowed_side = min(original_max_side, max(384, max_input_side))
         resolution_seed = [
             highest_allowed_side,

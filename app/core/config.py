@@ -25,6 +25,28 @@ class Settings:
                 return None
             return float(value)
 
+        def _parse_profile_map(name: str, default_map: dict[str, int]) -> dict[str, int]:
+            raw = os.getenv(name, "").strip()
+            if not raw:
+                return dict(default_map)
+            parsed: dict[str, int] = {}
+            for chunk in raw.split(","):
+                item = chunk.strip()
+                if not item or ":" not in item:
+                    continue
+                key, value = item.split(":", 1)
+                key = key.strip().lower()
+                value = value.strip()
+                if not key or not value:
+                    continue
+                try:
+                    parsed[key] = int(value)
+                except ValueError:
+                    continue
+            merged = dict(default_map)
+            merged.update(parsed)
+            return merged
+
         self.base_dir = Path(__file__).resolve().parents[1]
         self.model_id = os.getenv("MODEL_ID", "hunyuanvideo-community/HunyuanVideo-I2V")
         self.hf_token = os.getenv("HF_TOKEN") or os.getenv("HUGGING_FACE_HUB_TOKEN")
@@ -104,6 +126,20 @@ class Settings:
             self.max_prompt_words = 1
         if self.max_negative_prompt_words < 1:
             self.max_negative_prompt_words = 1
+
+        self.quality_profile = os.getenv("QUALITY_PROFILE", "balanced").strip().lower()
+        self.max_frames_by_profile = _parse_profile_map(
+            "MAX_FRAMES_BY_PROFILE",
+            {"low": 160, "balanced": 320, "high": 320},
+        )
+        self.max_steps_by_profile = _parse_profile_map(
+            "MAX_STEPS_BY_PROFILE",
+            {"low": 20, "balanced": 28, "high": 32},
+        )
+        self.max_input_side_by_profile = _parse_profile_map(
+            "MAX_INPUT_SIDE_BY_PROFILE",
+            {"low": 768, "balanced": 1024, "high": 1280},
+        )
 
         self.default_output_long_edge = int(os.getenv("DEFAULT_OUTPUT_LONG_EDGE", "1080"))
         self.output_long_edge_options = [

@@ -62,12 +62,14 @@ async def generate(
     guidance_scale: float = Form(settings.default_guidance_scale),
     steps: int = Form(settings.default_num_inference_steps),
     fps: int = Form(settings.default_fps),
+    duration_seconds: float | None = Form(default=None),
+    quality_profile: str = Form(default=settings.quality_profile),
     output_long_edge: int = Form(settings.default_output_long_edge),
     enable_deflicker: bool = Form(settings.enable_deflicker),
     seed: int | None = Form(default=None),
 ) -> GenerateResponse:
     LOGGER.info(
-        "API /generate request received. filename=%s prompt_len=%d num_frames=%s steps=%s fps=%s guidance_scale=%s seed=%s output_long_edge=%s deflicker=%s",
+        "API /generate request received. filename=%s prompt_len=%d num_frames=%s steps=%s fps=%s guidance_scale=%s seed=%s output_long_edge=%s deflicker=%s profile=%s duration=%s",
         image.filename,
         len(prompt),
         num_frames,
@@ -77,6 +79,8 @@ async def generate(
         seed,
         output_long_edge,
         enable_deflicker,
+        quality_profile,
+        duration_seconds,
     )
     manager = get_pipeline_manager()
 
@@ -104,6 +108,8 @@ async def generate(
             num_inference_steps=steps,
             fps=fps,
             seed=seed,
+            duration_seconds=duration_seconds,
+            quality_profile=quality_profile,
             subject=subject,
             action=action,
             camera_motion=camera_motion,

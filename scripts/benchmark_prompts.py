@@ -139,6 +139,8 @@ def main() -> None:
             num_inference_steps=int(case.get("steps", defaults.get("steps", settings.default_num_inference_steps))),
             fps=int(case.get("fps", defaults.get("fps", settings.default_fps))),
             seed=seed,
+            duration_seconds=case.get("duration_seconds", defaults.get("duration_seconds")),
+            quality_profile=case.get("quality_profile", defaults.get("quality_profile", settings.quality_profile)),
             subject=case.get("subject", ""),
             action=case.get("action", ""),
             camera_motion=case.get("camera_motion", ""),
@@ -149,7 +151,9 @@ def main() -> None:
             output_long_edge=int(
                 case.get("output_long_edge", defaults.get("output_long_edge", settings.default_output_long_edge))
             ),
-            enable_deflicker=bool(case.get("enable_deflicker", defaults.get("enable_deflicker", settings.enable_deflicker))),
+            enable_deflicker=bool(
+                case.get("enable_deflicker", defaults.get("enable_deflicker", settings.enable_deflicker))
+            ),
         )
 
         name = _slugify(case.get("name", f"case_{idx}"))

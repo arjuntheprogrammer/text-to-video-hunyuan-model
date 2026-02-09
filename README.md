@@ -52,6 +52,117 @@ cp .env_template .env
 docker compose up --build
 ```
 
+## Project Flow (Mermaid)
+
+```mermaid
+flowchart TB
+    %% High-level project flow for HunyuanVideo-I2V
+    classDef entry fill:#0b1f3b,stroke:#4fa3ff,stroke-width:1px,color:#e7f1ff
+    classDef compute fill:#0f2f1f,stroke:#38c172,stroke-width:1px,color:#e6fff2
+    classDef io fill:#3b1b0f,stroke:#ff9f43,stroke-width:1px,color:#fff2e6
+    classDef storage fill:#2b1b3b,stroke:#b07cff,stroke-width:1px,color:#f3e6ff
+    classDef util fill:#1f2b2b,stroke:#9bd1d1,stroke-width:1px,color:#ecffff
+
+    subgraph Setup["Setup & Environment"]
+        Env[".env / env vars"]:::util
+        Conda["setup/setup.sh (conda-native)"]:::entry
+        Docker["docker-compose.yml (optional)"]:::entry
+        Conda --> Env
+        Docker --> Env
+    end
+
+    subgraph Bootstrap["Runtime Bootstrap (run.py)"]
+        Run["run.py"]:::entry
+        Log["logging_utils.configure_logging"]:::util
+        Dirs["utils.ensure_directories"]:::util
+        Uvicorn["uvicorn server"]:::entry
+        GradioLaunch["gradio_ui.launch_gradio_app"]:::entry
+        Run --> Log
+        Run --> Dirs
+        Run --> Uvicorn
+        Run --> GradioLaunch
+    end
+
+    subgraph API["FastAPI (app/main.py)"]
+        Health["GET /health"]:::io
+        Generate["POST /generate"]:::io
+        Outputs["GET /outputs/{filename}"]:::io
+        Health --> ManagerStatus["pipeline manager status"]:::compute
+        Generate --> Validate["validate input + decode image"]:::util
+        Outputs --> FileResp["FileResponse (mp4)"]:::io
+    end
+
+    subgraph UI["Gradio UI (app/gradio_ui.py)"]
+        UIForm["Blocks UI + prompt fields"]:::io
+        UIGen["_generate_from_ui"]:::io
+        UIForm --> UIGen
+    end
+
+    subgraph Pipeline["Pipeline Core (app/pipeline.py)"]
+        Manager["HunyuanVideoPipelineManager"]:::compute
+        Init["configure runtime + load model"]:::compute
+        Caption["captioning.caption_image (optional)"]:::compute
+        Prompt["prompt_builder.build_structured_prompt"]:::compute
+        Truncate["token + word truncation"]:::util
+        OOM["OOM-safe retry ladder"]:::compute
+        Diffusers["diffusers HunyuanVideo pipeline"]:::compute
+        Frames["frames[]"]:::compute
+        SaveMp4["video_utils.save_frames_to_mp4"]:::compute
+        Manager --> Init
+        Caption --> Prompt
+        Prompt --> Truncate
+        Truncate --> OOM
+        OOM --> Diffusers
+        Diffusers --> Frames
+        Frames --> SaveMp4
+    end
+
+    subgraph Captioning["Captioning (app/captioning.py)"]
+        BLIP["BLIP-2 model (optional)"]:::compute
+    end
+
+    subgraph VideoUtils["Video Encode (app/video_utils.py)"]
+        Target["compute_target_size"]:::compute
+        Normalize["normalize + deflicker"]:::compute
+        Resize["resize/pad to target"]:::compute
+        Encode["imageio -> mp4"]:::compute
+        Target --> Normalize --> Resize --> Encode
+    end
+
+    subgraph Storage["Persistence"]
+        Models["models/ (HF cache)"]:::storage
+        OutputsDir["outputs/ (mp4 files)"]:::storage
+        Logs["logs/ (hunyuan_app.log)"]:::storage
+    end
+
+    subgraph Scripts["Scripts & Tests"]
+        Bench["scripts/benchmark_prompts.py"]:::util
+        Samples["tests/samples/*"]:::util
+        Tests["tests/test_*"]:::util
+        Bench --> Samples
+    end
+
+    %% Cross-subgraph flow
+    Env --> Run
+    Uvicorn --> Health
+    Uvicorn --> Generate
+    GradioLaunch --> UIForm
+    UIGen --> Manager
+    Validate --> Manager
+    Manager --> Caption
+    Caption --> BLIP
+    Init --> Models
+    SaveMp4 --> Target
+    Encode --> OutputsDir
+    OutputsDir --> FileResp
+    Log --> Logs
+    Dirs --> Models
+    Dirs --> OutputsDir
+    Dirs --> Logs
+    SaveMp4 --> Response["GenerateResponse (output_url + metadata)"]:::io
+    Generate --> Response
+```
+
 ## Requirements
 
 ### Conda-native

@@ -207,6 +207,46 @@ Download generated file from `output_url`:
 curl -O "http://localhost:8000/outputs/<filename>.mp4"
 ```
 
+## Sample Test (Local)
+
+Use the bundled sample image + prompt (from `tests/samples/02`) to validate a full end-to-end run.
+
+### 20s output (API)
+
+```bash
+PROMPT_TEXT="$(cat tests/samples/02/prompt.txt)"
+curl -X POST "http://localhost:8000/generate" \
+  -F "image=@tests/samples/02/img.jpg" \
+  -F "prompt=${PROMPT_TEXT}" \
+  -F "duration_seconds=20" \
+  -F "fps=16" \
+  -F "num_frames=320" \
+  -F "steps=16" \
+  -F "quality_profile=balanced" \
+  -F "output_long_edge=720" \
+  -F "enable_deflicker=false" \
+  -F "enable_sharpen=false"
+```
+
+Download the result using the `output_url` returned by the API:
+
+```bash
+curl -O "http://localhost:8000/outputs/<filename>.mp4"
+```
+
+## Performance Notes (L40S)
+
+Measured on a single NVIDIA L40S (48GB) with captioning enabled (on-demand GPU load/unload), CPU offload enabled, and `MAX_INPUT_IMAGE_SIDE=384` (internal resolution ~288x384; output resized to 540x720).
+
+| Scenario | Frames / FPS | Steps | Output Long Edge | Captioning | Total Time |
+| --- | --- | --- | --- | --- | --- |
+| 6s sample (tests/samples/02) | 96 / 16 | 16 | 720 | enabled | ~68s |
+| 20s sample (tests/samples/02) | 320 / 16 | 16 | 720 | enabled | ~263s |
+
+Notes:
+- Times include caption generation + video encode.
+- Increasing `MAX_INPUT_IMAGE_SIDE`, resolution, steps, or frames will increase runtime and VRAM usage.
+
 ## Structured Prompt Fields (Gradio + API)
 
 | Field | Options |

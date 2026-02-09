@@ -651,6 +651,17 @@ class HunyuanVideoPipelineManager:
         frames = self._extract_frames(result)
         if not frames:
             raise RuntimeError("No frames generated.")
+        if len(frames) != used_attempt_frames:
+            LOGGER.warning(
+                "Pipeline returned %d frames; expected %d. Padding/trimming to match.",
+                len(frames),
+                used_attempt_frames,
+            )
+            if len(frames) < used_attempt_frames:
+                last_frame = frames[-1]
+                frames = list(frames) + [last_frame] * (used_attempt_frames - len(frames))
+            else:
+                frames = list(frames)[:used_attempt_frames]
 
         requested_long_edge = output_long_edge or settings.default_output_long_edge
         if requested_long_edge not in settings.output_long_edge_options:

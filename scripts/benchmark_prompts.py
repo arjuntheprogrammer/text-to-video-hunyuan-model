@@ -3,10 +3,15 @@ import json
 import random
 import re
 import shutil
+import sys
 import time
 from pathlib import Path
 
 from PIL import Image
+
+ROOT_DIR = Path(__file__).resolve().parents[1]
+if str(ROOT_DIR) not in sys.path:
+    sys.path.insert(0, str(ROOT_DIR))
 
 from app.config import settings
 from app.pipeline import get_pipeline_manager

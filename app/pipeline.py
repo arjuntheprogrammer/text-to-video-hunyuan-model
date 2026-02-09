@@ -206,6 +206,46 @@ class HunyuanVideoPipelineManager:
             resolved_negative = settings.default_negative_prompt.strip() or None
         return effective_prompt, resolved_negative
 
+    def _truncate_prompt_for_tokenizers(self, prompt: str, tokenizers: list[Any]) -> str:
+        truncated = prompt
+        for tokenizer in tokenizers:
+            if tokenizer is None:
+                continue
+            max_len = getattr(tokenizer, "model_max_length", None)
+            if not isinstance(max_len, int) or max_len <= 0:
+                continue
+            try:
+                encoded = tokenizer(
+                    truncated,
+                    truncation=True,
+                    max_length=max_len,
+                    return_overflowing_tokens=True,
+                )
+            except Exception:  # pragma: no cover
+                continue
+            input_ids = encoded.get("input_ids") if isinstance(encoded, dict) else None
+            if not input_ids:
+                continue
+            if hasattr(tokenizer, "decode"):
+                decoded = tokenizer.decode(input_ids[0], skip_special_tokens=True).strip()
+                if decoded and decoded != truncated:
+                    LOGGER.info(
+                        "Truncated prompt for %s to max_length=%s",
+                        tokenizer.__class__.__name__,
+                        max_len,
+                    )
+                    truncated = decoded
+        return truncated
+
+    @staticmethod
+    def _truncate_prompt_words(prompt: str, max_words: int) -> str:
+        if max_words <= 0:
+            return prompt
+        words = prompt.split()
+        if len(words) <= max_words:
+            return prompt
+        return " ".join(words[:max_words]).strip()
+
     @staticmethod
     def _extract_frames(result: Any) -> list[Any]:
         frames = None
@@ -335,6 +375,44 @@ class HunyuanVideoPipelineManager:
             mood=mood,
             negative_prompt=negative_prompt,
         )
+        tokenizers: list[Any] = []
+        if self.pipe is not None:
+            tokenizers = [
+                getattr(self.pipe, "tokenizer", None),
+                getattr(self.pipe, "tokenizer_2", None),
+            ]
+        if tokenizers:
+            effective_prompt = self._truncate_prompt_for_tokenizers(effective_prompt, tokenizers)
+            if resolved_negative_prompt:
+                resolved_negative_prompt = self._truncate_prompt_for_tokenizers(
+                    resolved_negative_prompt,
+                    tokenizers,
+                )
+        word_truncated_prompt = self._truncate_prompt_words(
+            effective_prompt,
+            settings.max_prompt_words,
+        )
+        if word_truncated_prompt != effective_prompt:
+            LOGGER.info(
+                "Prompt truncated by word limit. before_words=%d after_words=%d limit=%d",
+                len(effective_prompt.split()),
+                len(word_truncated_prompt.split()),
+                settings.max_prompt_words,
+            )
+            effective_prompt = word_truncated_prompt
+        if resolved_negative_prompt:
+            word_truncated_negative = self._truncate_prompt_words(
+                resolved_negative_prompt,
+                settings.max_negative_prompt_words,
+            )
+            if word_truncated_negative != resolved_negative_prompt:
+                LOGGER.info(
+                    "Negative prompt truncated by word limit. before_words=%d after_words=%d limit=%d",
+                    len(resolved_negative_prompt.split()),
+                    len(word_truncated_negative.split()),
+                    settings.max_negative_prompt_words,
+                )
+                resolved_negative_prompt = word_truncated_negative
         LOGGER.info(
             "Prompt enhancement applied. user_prompt_len=%d effective_prompt_len=%d negative_prompt_len=%d",
             len(prompt),
@@ -504,6 +582,27 @@ class HunyuanVideoPipelineManager:
                         except Exception:  # pragma: no cover
                             pass
                     continue
+                except RuntimeError as exc:
+                    message = str(exc).lower()
+                    if "out of memory" in message or "cuda out of memory" in message:
+                        last_oom = exc
+                        LOGGER.warning(
+                            "Runtime OOM at %sx%s on attempt %d/%d (frames=%s, steps=%s). Retrying with lower settings.",
+                            input_image.size[0],
+                            input_image.size[1],
+                            attempt_index,
+                            len(attempts),
+                            attempt_frames,
+                            attempt_steps,
+                        )
+                        if self.device == "cuda":
+                            torch.cuda.empty_cache()
+                            try:
+                                torch.cuda.ipc_collect()
+                            except Exception:  # pragma: no cover
+                                pass
+                        continue
+                    raise
 
             if result is None and last_oom is not None:
                 LOGGER.info(

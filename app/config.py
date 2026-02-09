@@ -96,6 +96,12 @@ class Settings:
             self.deflicker_window = 1
         if self.deflicker_window % 2 == 0:
             self.deflicker_window += 1
+        self.max_prompt_words = int(os.getenv("MAX_PROMPT_WORDS", "60"))
+        self.max_negative_prompt_words = int(os.getenv("MAX_NEGATIVE_PROMPT_WORDS", "60"))
+        if self.max_prompt_words < 1:
+            self.max_prompt_words = 1
+        if self.max_negative_prompt_words < 1:
+            self.max_negative_prompt_words = 1
 
         self.default_output_long_edge = int(os.getenv("DEFAULT_OUTPUT_LONG_EDGE", "1080"))
         self.output_long_edge_options = [

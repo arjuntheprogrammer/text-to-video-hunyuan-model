@@ -126,6 +126,7 @@ Output long-edge presets: `720`, `1080`, `1440` (aspect ratio derived from the i
   - optionally prepends a BLIP-2 caption for better identity anchoring
   - appends an internal realism suffix to the user prompt
   - applies a default negative prompt to reduce flicker/fade/morph artifacts (can be overridden)
+  - enforces word limits to avoid CLIP token overflow (override via `MAX_PROMPT_WORDS`, `MAX_NEGATIVE_PROMPT_WORDS`)
 - Deflicker post-processing is enabled by default; toggle via `ENABLE_DEFLICKER` or the API parameter.
 - CPU offload defaults:
   - `ENABLE_SEQUENTIAL_CPU_OFFLOAD=0`

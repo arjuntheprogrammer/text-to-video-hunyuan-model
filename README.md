@@ -15,7 +15,7 @@ Includes:
 Use this when you do not have host-level Docker access (common on rented GPU/container instances).
 
 ```bash
-cd /home/ubuntu/text-to-video-hunyuan-model
+cd /path/to/text-to-video-hunyuan-model
 chmod +x setup/setup.sh
 HF_TOKEN=hf_xxx ./setup/setup.sh
 ```
@@ -23,7 +23,7 @@ HF_TOKEN=hf_xxx ./setup/setup.sh
 If `.env` already has a valid `HF_TOKEN`, this also works:
 
 ```bash
-cd /home/ubuntu/text-to-video-hunyuan-model
+cd /path/to/text-to-video-hunyuan-model
 ./setup/setup.sh
 ```
 
@@ -55,112 +55,85 @@ docker compose up --build
 ## Project Flow (Mermaid)
 
 ```mermaid
-flowchart TB
-    %% High-level project flow for HunyuanVideo-I2V
-    classDef entry fill:#0b1f3b,stroke:#4fa3ff,stroke-width:1px,color:#e7f1ff
-    classDef compute fill:#0f2f1f,stroke:#38c172,stroke-width:1px,color:#e6fff2
-    classDef io fill:#3b1b0f,stroke:#ff9f43,stroke-width:1px,color:#fff2e6
-    classDef storage fill:#2b1b3b,stroke:#b07cff,stroke-width:1px,color:#f3e6ff
-    classDef util fill:#1f2b2b,stroke:#9bd1d1,stroke-width:1px,color:#ecffff
+flowchart LR
+    %% Sequential project flow for HunyuanVideo-I2V
+    classDef step fill:#0f172a,stroke:#38bdf8,stroke-width:1.5px,color:#e2e8f0
+    classDef io fill:#1f2937,stroke:#f59e0b,stroke-width:1.5px,color:#fef3c7
+    classDef compute fill:#052e16,stroke:#22c55e,stroke-width:1.5px,color:#ecfdf5
+    classDef store fill:#312e81,stroke:#a5b4fc,stroke-width:1.5px,color:#eef2ff
+    classDef util fill:#0b2f33,stroke:#2dd4bf,stroke-width:1.5px,color:#ecfeff
 
-    subgraph Setup["Setup & Environment"]
-        Env[".env / env vars"]:::util
-        Conda["setup/setup.sh (conda-native)"]:::entry
-        Docker["docker-compose.yml (optional)"]:::entry
+    subgraph S1["1) Setup"]
+        Env[".env (HF_TOKEN + overrides)"]:::util
+        Conda["setup/setup.sh (conda-native)"]:::step
+        Docker["docker-compose.yml (optional)"]:::step
         Conda --> Env
         Docker --> Env
     end
 
-    subgraph Bootstrap["Runtime Bootstrap (run.py)"]
-        Run["run.py"]:::entry
-        Log["logging_utils.configure_logging"]:::util
-        Dirs["utils.ensure_directories"]:::util
-        Uvicorn["uvicorn server"]:::entry
-        GradioLaunch["gradio_ui.launch_gradio_app"]:::entry
-        Run --> Log
-        Run --> Dirs
-        Run --> Uvicorn
-        Run --> GradioLaunch
+    subgraph S2["2) Bootstrap (run.py)"]
+        Dotenv["dotenv.load_dotenv(override=True)"]:::util
+        Log["core/logging.configure_logging"]:::util
+        Dirs["utils/common.ensure_directories"]:::util
+        API["uvicorn -> api/app.py"]:::step
+        UI["ui/gradio_app.py"]:::step
+        Dotenv --> Log --> Dirs --> API
+        Dirs --> UI
     end
 
-    subgraph API["FastAPI (app/main.py)"]
-        Health["GET /health"]:::io
-        Generate["POST /generate"]:::io
-        Outputs["GET /outputs/{filename}"]:::io
-        Health --> ManagerStatus["pipeline manager status"]:::compute
-        Generate --> Validate["validate input + decode image"]:::util
-        Outputs --> FileResp["FileResponse (mp4)"]:::io
+    subgraph S3["3) Request"]
+        APIReq["REST POST /generate"]:::io
+        UIReq["Gradio Generate"]:::io
     end
 
-    subgraph UI["Gradio UI (app/gradio_ui.py)"]
-        UIForm["Blocks UI + prompt fields"]:::io
-        UIGen["_generate_from_ui"]:::io
-        UIForm --> UIGen
+    subgraph S4["4) Pipeline (services)"]
+        Validate["input validation + decode"]:::util
+        Manager["pipeline_manager.generate_video"]:::compute
+        Caption["captioning (BLIP-2 optional)"]:::compute
+        Prompt["prompt_builder + truncation"]:::util
+        Profile["quality_profiles caps"]:::util
+        Diffusers["diffusers HunyuanVideo I2V"]:::compute
+        Post["media/video: resize, deflicker, sharpen, encode"]:::compute
     end
 
-    subgraph Pipeline["Pipeline Core (app/pipeline.py)"]
-        Manager["HunyuanVideoPipelineManager"]:::compute
-        Init["configure runtime + load model"]:::compute
-        Caption["captioning.caption_image (optional)"]:::compute
-        Prompt["prompt_builder.build_structured_prompt"]:::compute
-        Truncate["token + word truncation"]:::util
-        OOM["OOM-safe retry ladder"]:::compute
-        Diffusers["diffusers HunyuanVideo pipeline"]:::compute
-        Frames["frames[]"]:::compute
-        SaveMp4["video_utils.save_frames_to_mp4"]:::compute
-        Manager --> Init
-        Caption --> Prompt
-        Prompt --> Truncate
-        Truncate --> OOM
-        OOM --> Diffusers
-        Diffusers --> Frames
-        Frames --> SaveMp4
+    subgraph S5["5) Outputs"]
+        Outputs["outputs/ (mp4)"]:::store
+        Logs["logs/ (hunyuan_app.log, health)"]:::store
+        Models["models/ (HF cache)"]:::store
     end
 
-    subgraph Captioning["Captioning (app/captioning.py)"]
-        BLIP["BLIP-2 model (optional)"]:::compute
-    end
-
-    subgraph VideoUtils["Video Encode (app/video_utils.py)"]
-        Target["compute_target_size"]:::compute
-        Normalize["normalize + deflicker"]:::compute
-        Resize["resize/pad to target"]:::compute
-        Encode["imageio -> mp4"]:::compute
-        Target --> Normalize --> Resize --> Encode
-    end
-
-    subgraph Storage["Persistence"]
-        Models["models/ (HF cache)"]:::storage
-        OutputsDir["outputs/ (mp4 files)"]:::storage
-        Logs["logs/ (hunyuan_app.log)"]:::storage
-    end
-
-    subgraph Scripts["Scripts & Tests"]
-        Bench["scripts/benchmark_prompts.py"]:::util
-        Samples["tests/samples/*"]:::util
-        Tests["tests/test_*"]:::util
-        Bench --> Samples
-    end
-
-    %% Cross-subgraph flow
-    Env --> Run
-    Uvicorn --> Health
-    Uvicorn --> Generate
-    GradioLaunch --> UIForm
-    UIGen --> Manager
-    Validate --> Manager
-    Manager --> Caption
-    Caption --> BLIP
-    Init --> Models
-    SaveMp4 --> Target
-    Encode --> OutputsDir
-    OutputsDir --> FileResp
+    Env --> Dotenv
+    API --> APIReq --> Validate --> Manager
+    UI --> UIReq --> Manager
+    Manager --> Caption --> Prompt --> Profile --> Diffusers --> Post --> Outputs
     Log --> Logs
     Dirs --> Models
-    Dirs --> OutputsDir
-    Dirs --> Logs
-    SaveMp4 --> Response["GenerateResponse (output_url + metadata)"]:::io
-    Generate --> Response
+```
+
+## File & Folder Structure
+
+```text
+.
+|-- app/                      # Application package
+|   |-- api/                  # FastAPI app + schemas
+|   |-- core/                 # config + logging setup
+|   |-- media/                # video post-processing + mp4 encode
+|   |-- services/             # pipeline manager, quality profiles, prompt builder, captioning
+|   |-- ui/                   # Gradio UI
+|   `-- utils/                # shared helpers (dirs, sanitize, clamp)
+|-- setup/                    # setup script + docs
+|-- scripts/                  # benchmark tooling
+|-- tests/                    # tests and sample fixtures
+|-- models/                   # HF cache (runtime)
+|-- outputs/                  # generated mp4 files
+|-- logs/                     # runtime logs + health snapshot
+|-- run.py                    # entrypoint (starts API + Gradio)
+|-- Dockerfile                # container build
+|-- docker-compose.yml        # docker runtime
+|-- environment.yml           # conda environment spec
+|-- requirements.txt          # pip dependencies
+|-- .env_template             # env template
+`-- .env                      # local overrides (auto-loaded, overrides env)
 ```
 
 ## Requirements
@@ -193,12 +166,14 @@ curl -X POST "http://localhost:8000/generate" \
   -F "lighting=soft daylight" \
   -F "mood=cinematic" \
   -F "negative_prompt=flicker, jitter, deformed anatomy" \
-  -F "num_frames=160" \
+  -F "duration_seconds=8" \
   -F "guidance_scale=6.0" \
   -F "steps=30" \
   -F "fps=16" \
+  -F "quality_profile=balanced" \
   -F "output_long_edge=1080" \
   -F "enable_deflicker=true" \
+  -F "enable_sharpen=false" \
   -F "seed=42"
 ```
 
@@ -224,6 +199,7 @@ Output long-edge presets: `720`, `1080`, `1440` (aspect ratio derived from the i
 ## Important Runtime Notes
 
 - `transformers` is pinned to `<5.0.0` for model compatibility.
+- `.env` is auto-loaded on startup via `python-dotenv` with `override=True` (values in `.env` take precedence).
 - xFormers attention is opt-in. Set `ENABLE_XFORMERS=1` in `.env` to enable.
 - Setup pins all model/cache paths to `./models` (`HF_HOME`, `HF_HUB_CACHE`, `TORCH_HOME`).
 - OOM safety defaults:
@@ -232,6 +208,7 @@ Output long-edge presets: `720`, `1080`, `1440` (aspect ratio derived from the i
   - conservative fallback profile uses `OOM_SAFE_NUM_FRAMES=32` and `OOM_SAFE_STEPS=12`
   - retry order now starts with user-requested `frames/steps` at highest allowed resolution, and downgrades only after OOM
 - Output video is resized to the selected long-edge preset while preserving input aspect ratio.
+- If `duration_seconds` is provided (API or UI), `num_frames` is derived from `duration_seconds × fps` and then capped by the selected quality profile.
 - Prompt enhancement defaults:
   - builds a structured prompt from dropdown fields + user text
   - optionally prepends a BLIP-2 caption for better identity anchoring

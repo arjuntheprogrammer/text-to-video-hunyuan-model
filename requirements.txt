@@ -13,4 +13,5 @@ imageio-ffmpeg>=0.5.1
 numpy>=1.26.4
 safetensors>=0.4.5
 python-multipart>=0.0.20
+python-dotenv>=1.0.1
 xformers>=0.0.29.post3; platform_system == "Linux" and platform_machine == "x86_64"

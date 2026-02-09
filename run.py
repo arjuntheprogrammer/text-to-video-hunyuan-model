@@ -3,12 +3,15 @@ import signal
 import threading
 import time
 
+from dotenv import load_dotenv
+
 import uvicorn
 
 from app.logging_utils import configure_logging
 
 
 def main() -> None:
+    load_dotenv()
     log_file = configure_logging()
     logger = logging.getLogger(__name__)
     logger.info("Starting HunyuanVideo service. log_file=%s", log_file)

@@ -83,8 +83,13 @@ done
 if [[ "${need_install}" -eq 1 ]]; then
   log "Installing OS packages (missing binaries detected)."
   ${SUDO} apt-get update
-  ${SUDO} DEBIAN_FRONTEND=noninteractive apt-get install -y \
-    wget curl ca-certificates bzip2 zsh ffmpeg git procps libgl1 libglib2.0-0
+  if [[ -n "${SUDO}" ]]; then
+    ${SUDO} env DEBIAN_FRONTEND=noninteractive apt-get install -y \
+      wget curl ca-certificates bzip2 zsh ffmpeg git procps libgl1 libglib2.0-0
+  else
+    DEBIAN_FRONTEND=noninteractive apt-get install -y \
+      wget curl ca-certificates bzip2 zsh ffmpeg git procps libgl1 libglib2.0-0
+  fi
 else
   log "OS packages already present; skipping apt install."
 fi

@@ -6,6 +6,7 @@ from PIL import Image
 
 from app.config import settings
 from app.pipeline import get_pipeline_manager
+from app.prompt_builder import PROMPT_FIELD_OPTIONS
 from app.utils import ensure_directories
 
 LOGGER = logging.getLogger(__name__)
@@ -14,20 +15,31 @@ LOGGER = logging.getLogger(__name__)
 def _generate_from_ui(
     image: Image.Image,
     prompt: str,
+    subject: str,
+    action: str,
+    camera_motion: str,
+    shot_type: str,
+    lighting: str,
+    mood: str,
+    negative_prompt: str,
     num_frames: int,
     steps: int,
     guidance_scale: float,
     fps: int,
+    output_long_edge: int,
+    enable_deflicker: bool,
     seed: int,
 ) -> tuple[str | None, str]:
     LOGGER.info(
-        "Gradio generation request received. prompt_len=%d num_frames=%s steps=%s fps=%s guidance_scale=%s seed=%s",
+        "Gradio generation request received. prompt_len=%d num_frames=%s steps=%s fps=%s guidance_scale=%s seed=%s output_long_edge=%s deflicker=%s",
         len(prompt or ""),
         num_frames,
         steps,
         fps,
         guidance_scale,
         seed,
+        output_long_edge,
+        enable_deflicker,
     )
     manager = get_pipeline_manager()
 
@@ -41,7 +53,7 @@ def _generate_from_ui(
     use_seed = seed if seed >= 0 else None
 
     try:
-        output_path, used_seed, used_num_frames, used_fps = manager.generate_video(
+        result = manager.generate_video(
             image=image,
             prompt=prompt.strip(),
             num_frames=int(num_frames),
@@ -49,6 +61,15 @@ def _generate_from_ui(
             num_inference_steps=int(steps),
             fps=int(fps),
             seed=use_seed,
+            subject=subject,
+            action=action,
+            camera_motion=camera_motion,
+            shot_type=shot_type,
+            lighting=lighting,
+            mood=mood,
+            negative_prompt=negative_prompt,
+            output_long_edge=int(output_long_edge),
+            enable_deflicker=bool(enable_deflicker),
         )
     except Exception as exc:
         LOGGER.exception("Gradio generation failed")
@@ -56,14 +77,14 @@ def _generate_from_ui(
 
     LOGGER.info(
         "Gradio generation completed. output=%s seed=%s frames=%s fps=%s",
-        Path(output_path).name,
-        used_seed,
-        used_num_frames,
-        used_fps,
+        Path(result.output_path).name,
+        result.seed,
+        result.num_frames,
+        result.fps,
     )
     return (
-        str(output_path),
-        f"Generated {Path(output_path).name} (seed={used_seed}, frames={used_num_frames}, fps={used_fps})",
+        str(result.output_path),
+        f"Generated {Path(result.output_path).name} (seed={result.seed}, frames={result.num_frames}, fps={result.fps})",
     )
 
 
@@ -76,14 +97,65 @@ def build_gradio_app() -> gr.Blocks:
             "Generate videos from a starting image and text prompt.\n"
             "Input image aspect ratio is preserved in output."
         )
+        gr.Markdown("Tip: Use a single action, continuous shot, no scene cuts.")
 
         with gr.Row():
             with gr.Column(scale=1):
                 image_input = gr.Image(type="pil", label="Starting Image")
+                subject_input = gr.Dropdown(
+                    choices=PROMPT_FIELD_OPTIONS["subject"],
+                    label="Subject",
+                    allow_custom_value=True,
+                    value="",
+                )
+                action_input = gr.Dropdown(
+                    choices=PROMPT_FIELD_OPTIONS["action"],
+                    label="Action",
+                    allow_custom_value=True,
+                    value="",
+                )
+                camera_input = gr.Dropdown(
+                    choices=PROMPT_FIELD_OPTIONS["camera_motion"],
+                    label="Camera Motion",
+                    allow_custom_value=True,
+                    value="",
+                )
+                shot_input = gr.Dropdown(
+                    choices=PROMPT_FIELD_OPTIONS["shot_type"],
+                    label="Shot Type",
+                    allow_custom_value=True,
+                    value="",
+                )
+                lighting_input = gr.Dropdown(
+                    choices=PROMPT_FIELD_OPTIONS["lighting"],
+                    label="Lighting",
+                    allow_custom_value=True,
+                    value="",
+                )
+                mood_input = gr.Dropdown(
+                    choices=PROMPT_FIELD_OPTIONS["mood"],
+                    label="Mood",
+                    allow_custom_value=True,
+                    value="",
+                )
                 prompt_input = gr.Textbox(
                     label="Prompt",
                     lines=4,
                     placeholder="Describe motion, animation, and scene changes...",
+                )
+                negative_prompt_input = gr.Textbox(
+                    label="Negative Prompt",
+                    value=settings.default_negative_prompt,
+                    lines=3,
+                )
+                output_long_edge_input = gr.Dropdown(
+                    choices=settings.output_long_edge_options,
+                    value=settings.default_output_long_edge,
+                    label="Output Long Edge (px)",
+                )
+                deflicker_input = gr.Checkbox(
+                    value=settings.enable_deflicker,
+                    label="Enable Deflicker",
                 )
                 frames_input = gr.Number(
                     minimum=settings.min_num_frames,
@@ -128,10 +200,19 @@ def build_gradio_app() -> gr.Blocks:
             inputs=[
                 image_input,
                 prompt_input,
+                subject_input,
+                action_input,
+                camera_input,
+                shot_input,
+                lighting_input,
+                mood_input,
+                negative_prompt_input,
                 frames_input,
                 steps_input,
                 guidance_input,
                 fps_input,
+                output_long_edge_input,
+                deflicker_input,
                 seed_input,
             ],
             outputs=[video_output, status_output],

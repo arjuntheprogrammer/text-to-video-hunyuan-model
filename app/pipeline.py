@@ -3,17 +3,35 @@ import logging
 import random
 import threading
 import time
+from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
 import torch
 from PIL import Image
 
+from app.captioning import caption_image
 from app.config import settings
+from app.prompt_builder import build_structured_prompt
 from app.utils import clamp_int, ensure_directories
-from app.video_utils import save_frames_to_mp4
+from app.video_utils import compute_target_size, save_frames_to_mp4
 
 LOGGER = logging.getLogger(__name__)
+
+
+@dataclass
+class GenerationResult:
+    output_path: Path
+    seed: int
+    num_frames: int
+    fps: int
+    num_inference_steps: int
+    guidance_scale: float
+    used_resolution: tuple[int, int]
+    output_resolution: tuple[int, int]
+    effective_prompt_len: int
+    negative_prompt_len: int
+    duration_seconds: float
 
 
 class HunyuanVideoPipelineManager:
@@ -25,6 +43,7 @@ class HunyuanVideoPipelineManager:
         self._pipe_call_arg_names: set[str] = set()
         self.model_loaded = False
         self.load_error: str | None = None
+        self._auto_max_input_side: int | None = None
 
         self._configure_runtime()
         self._load_pipeline()
@@ -131,16 +150,61 @@ class HunyuanVideoPipelineManager:
             self.load_error = str(exc)
             LOGGER.exception("Failed to load model pipeline: %s", exc)
 
-    def _build_effective_prompts(self, user_prompt: str) -> tuple[str, str | None]:
-        clean_prompt = user_prompt.strip()
-        suffix = settings.default_prompt_suffix.strip()
-        if suffix and suffix.lower() not in clean_prompt.lower():
-            effective_prompt = f"{clean_prompt}\n\n{suffix}"
-        else:
-            effective_prompt = clean_prompt
+    def _resolve_max_input_side(self) -> int:
+        if not settings.auto_max_input_side or settings.max_input_image_side_override:
+            return settings.max_input_image_side
 
-        negative_prompt = settings.default_negative_prompt.strip() or None
-        return effective_prompt, negative_prompt
+        if self._auto_max_input_side is not None:
+            return self._auto_max_input_side
+
+        max_side = settings.max_input_image_side
+        if self.device == "cuda":
+            try:
+                device_index = torch.cuda.current_device()
+                props = torch.cuda.get_device_properties(device_index)
+                total_gb = props.total_memory / (1024**3)
+                if total_gb >= 24:
+                    max_side = 1536
+                elif total_gb >= 16:
+                    max_side = 1280
+                else:
+                    max_side = 1024
+            except Exception as exc:  # pragma: no cover
+                LOGGER.warning("Auto max input side detection failed: %s", exc)
+
+        self._auto_max_input_side = max_side
+        LOGGER.info("Auto max input side resolved to %s", max_side)
+        return max_side
+
+    def _build_effective_prompts(
+        self,
+        user_prompt: str,
+        caption: str | None,
+        subject: str | None,
+        action: str | None,
+        camera_motion: str | None,
+        shot_type: str | None,
+        lighting: str | None,
+        mood: str | None,
+        negative_prompt: str | None,
+    ) -> tuple[str, str | None]:
+        effective_prompt = build_structured_prompt(
+            user_prompt=user_prompt,
+            caption=caption,
+            subject=subject,
+            action=action,
+            camera_motion=camera_motion,
+            shot_type=shot_type,
+            lighting=lighting,
+            mood=mood,
+            default_suffix=settings.default_prompt_suffix,
+        )
+        user_negative = (negative_prompt or "").strip()
+        if user_negative:
+            resolved_negative = user_negative
+        else:
+            resolved_negative = settings.default_negative_prompt.strip() or None
+        return effective_prompt, resolved_negative
 
     @staticmethod
     def _extract_frames(result: Any) -> list[Any]:
@@ -235,7 +299,16 @@ class HunyuanVideoPipelineManager:
         num_inference_steps: int,
         fps: int,
         seed: int | None,
-    ) -> tuple[Path, int, int, int]:
+        subject: str | None = None,
+        action: str | None = None,
+        camera_motion: str | None = None,
+        shot_type: str | None = None,
+        lighting: str | None = None,
+        mood: str | None = None,
+        negative_prompt: str | None = None,
+        output_long_edge: int | None = None,
+        enable_deflicker: bool | None = None,
+    ) -> GenerationResult:
         if not self.model_loaded or self.pipe is None:
             raise RuntimeError(
                 f"Model is not available. Load error: {self.load_error or 'unknown error'}"
@@ -249,15 +322,26 @@ class HunyuanVideoPipelineManager:
         )
         safe_fps = clamp_int(fps, settings.min_fps, settings.max_fps)
         safe_guidance = max(settings.min_guidance_scale, min(settings.max_guidance_scale, guidance_scale))
-        effective_prompt, negative_prompt = self._build_effective_prompts(prompt)
+        source_image = image.convert("RGB")
+        caption = caption_image(source_image) if settings.enable_captioning else None
+        effective_prompt, resolved_negative_prompt = self._build_effective_prompts(
+            user_prompt=prompt,
+            caption=caption,
+            subject=subject,
+            action=action,
+            camera_motion=camera_motion,
+            shot_type=shot_type,
+            lighting=lighting,
+            mood=mood,
+            negative_prompt=negative_prompt,
+        )
         LOGGER.info(
             "Prompt enhancement applied. user_prompt_len=%d effective_prompt_len=%d negative_prompt_len=%d",
             len(prompt),
             len(effective_prompt),
-            len(negative_prompt or ""),
+            len(resolved_negative_prompt or ""),
         )
 
-        source_image = image.convert("RGB")
         original_size = source_image.size
         LOGGER.info(
             "Source image received. size=%sx%s aspect_ratio=%.6f",
@@ -276,7 +360,8 @@ class HunyuanVideoPipelineManager:
         attempted_profiles: list[str] = []
 
         original_max_side = max(original_size)
-        highest_allowed_side = min(original_max_side, max(384, settings.max_input_image_side))
+        max_input_side = self._resolve_max_input_side()
+        highest_allowed_side = min(original_max_side, max(384, max_input_side))
         resolution_seed = [
             highest_allowed_side,
             2048,
@@ -378,10 +463,16 @@ class HunyuanVideoPipelineManager:
                                 ),
                                 "callback_on_step_end_tensor_inputs": ["latents"],
                             }
-                            if negative_prompt:
-                                pipe_kwargs["negative_prompt"] = negative_prompt
-                                pipe_kwargs["negative_prompt_2"] = negative_prompt
+                            if resolved_negative_prompt:
+                                pipe_kwargs["negative_prompt"] = resolved_negative_prompt
+                                pipe_kwargs["negative_prompt_2"] = resolved_negative_prompt
                             pipe_kwargs["prompt_2"] = effective_prompt
+                            if settings.guidance_rescale is not None:
+                                pipe_kwargs["guidance_rescale"] = settings.guidance_rescale
+                            if settings.image_guidance_scale is not None:
+                                pipe_kwargs["image_guidance_scale"] = settings.image_guidance_scale
+                            if settings.strength is not None:
+                                pipe_kwargs["strength"] = settings.strength
 
                             if self._pipe_call_arg_names:
                                 pipe_kwargs = {
@@ -435,7 +526,31 @@ class HunyuanVideoPipelineManager:
         if not frames:
             raise RuntimeError("No frames generated.")
 
-        output_path = save_frames_to_mp4(frames=frames, fps=safe_fps)
+        requested_long_edge = output_long_edge or settings.default_output_long_edge
+        if requested_long_edge not in settings.output_long_edge_options:
+            LOGGER.warning(
+                "Requested output long edge %s not in allowed options %s. Using default %s.",
+                requested_long_edge,
+                settings.output_long_edge_options,
+                settings.default_output_long_edge,
+            )
+            requested_long_edge = settings.default_output_long_edge
+
+        output_width, output_height = compute_target_size(
+            input_width=original_size[0],
+            input_height=original_size[1],
+            long_edge=requested_long_edge,
+        )
+        use_deflicker = settings.enable_deflicker if enable_deflicker is None else enable_deflicker
+
+        output_path = save_frames_to_mp4(
+            frames=frames,
+            fps=safe_fps,
+            target_width=output_width,
+            target_height=output_height,
+            enable_deflicker=use_deflicker,
+            deflicker_window=settings.deflicker_window,
+        )
         LOGGER.info(
             "Pipeline generation completed. output=%s resolution=%sx%s generated_frames=%d requested_frames=%d used_steps=%d elapsed=%.2fs",
             output_path,
@@ -446,7 +561,20 @@ class HunyuanVideoPipelineManager:
             used_attempt_steps,
             time.perf_counter() - generation_start,
         )
-        return output_path, used_seed, used_attempt_frames, safe_fps
+        duration_seconds = len(frames) / float(safe_fps) if safe_fps > 0 else 0.0
+        return GenerationResult(
+            output_path=output_path,
+            seed=used_seed,
+            num_frames=used_attempt_frames,
+            fps=safe_fps,
+            num_inference_steps=used_attempt_steps,
+            guidance_scale=safe_guidance,
+            used_resolution=used_attempt_resolution,
+            output_resolution=(output_width, output_height),
+            effective_prompt_len=len(effective_prompt),
+            negative_prompt_len=len(resolved_negative_prompt or ""),
+            duration_seconds=duration_seconds,
+        )
 
 
 _PIPELINE_MANAGER = HunyuanVideoPipelineManager()

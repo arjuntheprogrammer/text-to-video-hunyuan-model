@@ -51,14 +51,23 @@ def health() -> HealthResponse:
 async def generate(
     image: UploadFile = File(...),
     prompt: str = Form(..., min_length=3, max_length=2000),
+    subject: str = Form(default=""),
+    action: str = Form(default=""),
+    camera_motion: str = Form(default=""),
+    shot_type: str = Form(default=""),
+    lighting: str = Form(default=""),
+    mood: str = Form(default=""),
+    negative_prompt: str = Form(default=settings.default_negative_prompt),
     num_frames: int = Form(settings.default_num_frames),
     guidance_scale: float = Form(settings.default_guidance_scale),
     steps: int = Form(settings.default_num_inference_steps),
     fps: int = Form(settings.default_fps),
+    output_long_edge: int = Form(settings.default_output_long_edge),
+    enable_deflicker: bool = Form(settings.enable_deflicker),
     seed: int | None = Form(default=None),
 ) -> GenerateResponse:
     LOGGER.info(
-        "API /generate request received. filename=%s prompt_len=%d num_frames=%s steps=%s fps=%s guidance_scale=%s seed=%s",
+        "API /generate request received. filename=%s prompt_len=%d num_frames=%s steps=%s fps=%s guidance_scale=%s seed=%s output_long_edge=%s deflicker=%s",
         image.filename,
         len(prompt),
         num_frames,
@@ -66,6 +75,8 @@ async def generate(
         fps,
         guidance_scale,
         seed,
+        output_long_edge,
+        enable_deflicker,
     )
     manager = get_pipeline_manager()
 
@@ -85,7 +96,7 @@ async def generate(
         raise HTTPException(status_code=400, detail="Invalid image file.") from exc
 
     try:
-        output_path, used_seed, used_num_frames, used_fps = manager.generate_video(
+        result = manager.generate_video(
             image=pil_image,
             prompt=prompt,
             num_frames=num_frames,
@@ -93,6 +104,15 @@ async def generate(
             num_inference_steps=steps,
             fps=fps,
             seed=seed,
+            subject=subject,
+            action=action,
+            camera_motion=camera_motion,
+            shot_type=shot_type,
+            lighting=lighting,
+            mood=mood,
+            negative_prompt=negative_prompt,
+            output_long_edge=output_long_edge,
+            enable_deflicker=enable_deflicker,
         )
     except ValueError as exc:
         LOGGER.warning("Generation rejected by validation: %s", exc)
@@ -103,18 +123,27 @@ async def generate(
 
     LOGGER.info(
         "API /generate completed. output=%s seed=%s frames=%s fps=%s",
-        output_path.name,
-        used_seed,
-        used_num_frames,
-        used_fps,
+        result.output_path.name,
+        result.seed,
+        result.num_frames,
+        result.fps,
     )
     return GenerateResponse(
-        filename=output_path.name,
-        output_path=str(output_path),
-        output_url=f"/outputs/{output_path.name}",
-        fps=used_fps,
-        num_frames=used_num_frames,
-        seed=used_seed,
+        filename=result.output_path.name,
+        output_path=str(result.output_path),
+        output_url=f"/outputs/{result.output_path.name}",
+        fps=result.fps,
+        num_frames=result.num_frames,
+        seed=result.seed,
+        used_steps=result.num_inference_steps,
+        used_guidance_scale=result.guidance_scale,
+        used_resolution_width=result.used_resolution[0],
+        used_resolution_height=result.used_resolution[1],
+        output_resolution_width=result.output_resolution[0],
+        output_resolution_height=result.output_resolution[1],
+        effective_prompt_len=result.effective_prompt_len,
+        negative_prompt_len=result.negative_prompt_len,
+        duration_seconds=result.duration_seconds,
     )
 
 

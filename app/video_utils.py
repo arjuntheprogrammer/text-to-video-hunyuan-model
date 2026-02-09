@@ -1,7 +1,7 @@
 import logging
 import math
 from pathlib import Path
-from typing import Iterable
+from typing import Iterable, Sequence
 
 import imageio
 import numpy as np
@@ -30,6 +30,69 @@ def _normalize_frame(frame: np.ndarray | Image.Image) -> np.ndarray:
             array = np.clip(array, 0, 255).astype(np.uint8)
 
     return array
+
+
+def compute_target_size(input_width: int, input_height: int, long_edge: int) -> tuple[int, int]:
+    if input_width <= 0 or input_height <= 0 or long_edge <= 0:
+        return max(2, input_width), max(2, input_height)
+
+    current_long_edge = max(input_width, input_height)
+    if current_long_edge <= 0:
+        return max(2, input_width), max(2, input_height)
+
+    scale = long_edge / float(current_long_edge)
+    target_width = max(2, int(round(input_width * scale)))
+    target_height = max(2, int(round(input_height * scale)))
+
+    if target_width % 2 != 0:
+        target_width -= 1
+    if target_height % 2 != 0:
+        target_height -= 1
+
+    target_width = max(2, target_width)
+    target_height = max(2, target_height)
+    return target_width, target_height
+
+
+def resize_frames_to_target(
+    frames: Sequence[np.ndarray],
+    target_width: int,
+    target_height: int,
+) -> list[np.ndarray]:
+    if not frames:
+        return []
+    if target_width <= 0 or target_height <= 0:
+        return list(frames)
+
+    sample = frames[0]
+    if sample.shape[1] == target_width and sample.shape[0] == target_height:
+        return list(frames)
+
+    resized_frames: list[np.ndarray] = []
+    for frame in frames:
+        resized = np.array(
+            Image.fromarray(frame).resize((target_width, target_height), Image.Resampling.LANCZOS),
+            dtype=np.uint8,
+        )
+        resized_frames.append(resized)
+    return resized_frames
+
+
+def deflicker_frames(frames: Sequence[np.ndarray], window: int = 3) -> list[np.ndarray]:
+    if not frames:
+        return []
+    if window <= 1 or len(frames) <= 1:
+        return list(frames)
+
+    half = window // 2
+    output: list[np.ndarray] = []
+    for idx in range(len(frames)):
+        start = max(0, idx - half)
+        end = min(len(frames), idx + half + 1)
+        stack = np.stack(frames[start:end], axis=0)
+        median_frame = np.median(stack, axis=0).astype(np.uint8)
+        output.append(median_frame)
+    return output
 
 
 def _fit_frame_to_aspect_ratio(
@@ -88,6 +151,10 @@ def save_frames_to_mp4(
     target_aspect_width: int | None = None,
     target_aspect_height: int | None = None,
     output_path: Path | None = None,
+    target_width: int | None = None,
+    target_height: int | None = None,
+    enable_deflicker: bool = False,
+    deflicker_window: int = 3,
 ) -> Path:
     ensure_directories()
 
@@ -100,6 +167,20 @@ def save_frames_to_mp4(
     LOGGER.info("Encoding video to mp4. output=%s fps=%s frames=%d", output_path, fps, len(frame_list))
 
     normalized_frames = [_normalize_frame(frame) for frame in frame_list]
+    if enable_deflicker:
+        LOGGER.info("Applying deflicker. window=%s frames=%d", deflicker_window, len(normalized_frames))
+        normalized_frames = deflicker_frames(normalized_frames, window=deflicker_window)
+    if target_width and target_height:
+        LOGGER.info(
+            "Resizing frames to target. target=%sx%s",
+            target_width,
+            target_height,
+        )
+        normalized_frames = resize_frames_to_target(
+            normalized_frames,
+            target_width=target_width,
+            target_height=target_height,
+        )
     if target_aspect_width and target_aspect_height:
         original_shape = normalized_frames[0].shape
         normalized_frames = [

@@ -75,10 +75,19 @@ docker compose up --build
 curl -X POST "http://localhost:8000/generate" \
   -F "image=@/absolute/path/input.png" \
   -F "prompt=cinematic camera dolly with gentle subject motion" \
+  -F "subject=person" \
+  -F "action=turning head" \
+  -F "camera_motion=dolly in" \
+  -F "shot_type=close-up" \
+  -F "lighting=soft daylight" \
+  -F "mood=cinematic" \
+  -F "negative_prompt=flicker, jitter, deformed anatomy" \
   -F "num_frames=160" \
   -F "guidance_scale=6.0" \
   -F "steps=30" \
   -F "fps=16" \
+  -F "output_long_edge=1080" \
+  -F "enable_deflicker=true" \
   -F "seed=42"
 ```
 
@@ -88,20 +97,36 @@ Download generated file from `output_url`:
 curl -O "http://localhost:8000/outputs/<filename>.mp4"
 ```
 
+## Structured Prompt Fields (Gradio + API)
+
+| Field | Options |
+| --- | --- |
+| subject | person, product, food, fashion, animal, vehicle, architecture, landscape, cityscape, gadget |
+| action | walking, turning head, smiling, hand gesture, hair movement, pouring, rotating, hovering, panning reveal, still |
+| camera_motion | static, slow pan, tilt, dolly in, dolly out, orbit, handheld, zoom in, zoom out |
+| shot_type | close-up, medium, wide, macro, overhead, low angle, high angle |
+| lighting | soft daylight, golden hour, studio softbox, neon, backlit, overcast, candlelight |
+| mood | cinematic, calm, energetic, moody, dreamy, documentary, romantic, dramatic |
+
+Output long-edge presets: `720`, `1080`, `1440` (aspect ratio derived from the input image).
+
 ## Important Runtime Notes
 
 - `transformers` is pinned to `<5.0.0` for model compatibility.
 - xFormers attention is opt-in. Set `ENABLE_XFORMERS=1` in `.env` to enable.
 - Setup pins all model/cache paths to `./models` (`HF_HOME`, `HF_HUB_CACHE`, `TORCH_HOME`).
 - OOM safety defaults:
-  - input images are auto-resized to `MAX_INPUT_IMAGE_SIDE` (default `1024`)
+  - input images are auto-resized based on GPU VRAM when `AUTO_MAX_INPUT_SIDE=1`
+  - set `MAX_INPUT_IMAGE_SIDE` to a number to override auto sizing
   - conservative fallback profile uses `OOM_SAFE_NUM_FRAMES=32` and `OOM_SAFE_STEPS=12`
   - retry order now starts with user-requested `frames/steps` at highest allowed resolution, and downgrades only after OOM
-- Output video is generated using the current input resolution/orientation (portrait inputs stay portrait) without post-encode crop/pad bars.
+- Output video is resized to the selected long-edge preset while preserving input aspect ratio.
 - Prompt enhancement defaults:
+  - builds a structured prompt from dropdown fields + user text
+  - optionally prepends a BLIP-2 caption for better identity anchoring
   - appends an internal realism suffix to the user prompt
-  - applies a default negative prompt to reduce flicker/fade/morph artifacts
-  - can be overridden via `.env` using `DEFAULT_PROMPT_SUFFIX` and `DEFAULT_NEGATIVE_PROMPT`
+  - applies a default negative prompt to reduce flicker/fade/morph artifacts (can be overridden)
+- Deflicker post-processing is enabled by default; toggle via `ENABLE_DEFLICKER` or the API parameter.
 - CPU offload defaults:
   - `ENABLE_SEQUENTIAL_CPU_OFFLOAD=0`
   - `ENABLE_MODEL_CPU_OFFLOAD=1`
@@ -125,3 +150,19 @@ See:
 - `setup/setup.sh` for full automated setup
 - `setup/setup.md` for usage, overrides, and troubleshooting
 - `setup/vscode-extensions.txt` for auto-install extension list
+
+## Benchmark Script
+
+Run the bundled prompt benchmark set:
+
+```bash
+python scripts/benchmark_prompts.py --json scripts/benchmark_prompts.json
+```
+
+Run against sample folders (each subfolder with `img.*` and `prompt.txt`):
+
+```bash
+python scripts/benchmark_prompts.py --samples-dir tests/samples
+```
+
+Outputs are written to `outputs/benchmarks/<timestamp>/` along with `benchmark_results.json`.

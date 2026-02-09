@@ -82,9 +82,22 @@ RUN_GENERATE_TEST=0 \
 TEST_IMAGE_PATH=./setup/test_input_512.png \
 PROGRESS_LOG_EVERY_STEPS=1 \
 PROGRESS_BAR_WIDTH=24 \
-MAX_INPUT_IMAGE_SIDE=1024 \
+AUTO_MAX_INPUT_SIDE=1 \
+MAX_INPUT_IMAGE_SIDE=auto \
 OOM_SAFE_NUM_FRAMES=32 \
 OOM_SAFE_STEPS=12 \
+DEFAULT_FPS=24 \
+DEFAULT_DURATION_SECONDS=6 \
+DEFAULT_NUM_INFERENCE_STEPS=45 \
+DEFAULT_GUIDANCE_SCALE=7.5 \
+DEFAULT_OUTPUT_LONG_EDGE=1080 \
+OUTPUT_LONG_EDGE_OPTIONS=720,1080,1440 \
+ENABLE_DEFLICKER=1 \
+DEFLICKER_WINDOW=3 \
+ENABLE_CAPTIONING=1 \
+CAPTION_MODEL_ID=Salesforce/blip2-opt-2.7b \
+CAPTION_DEVICE=cpu \
+CAPTION_MAX_TOKENS=40 \
 ENABLE_SEQUENTIAL_CPU_OFFLOAD=0 \
 ENABLE_MODEL_CPU_OFFLOAD=1 \
 ENABLE_XFORMERS=0 \
@@ -113,15 +126,32 @@ INSTALL_VSCODE_EXTENSIONS=0 ./setup/setup.sh
 
 - `requirements.txt` pins `transformers` to `<5.0.0` for model compatibility.
 - xFormers memory-efficient attention is opt-in via `ENABLE_XFORMERS=1`.
-- Generated output follows the input image orientation/aspect directly during generation (no post-encode crop/pad bars).
+- Auto input sizing is enabled via `AUTO_MAX_INPUT_SIDE=1`. Set `MAX_INPUT_IMAGE_SIDE` to a number to override.
+- Output video is resized to the selected long-edge preset while preserving input aspect ratio.
+- Deflicker post-processing is enabled by default; toggle via `ENABLE_DEFLICKER` or the API parameter.
 - Gradio uses a free-form `Frames` input so duration is not UI-capped (`duration = frames / fps`).
 - Prompt enhancement is enabled by default:
+  - builds a structured prompt from dropdown fields + user text
+  - optionally prepends a BLIP-2 caption for better identity anchoring
   - appends realism instructions to user prompt
   - applies negative prompt terms to reduce flicker/fade/morph artifacts
   - optional overrides: `DEFAULT_PROMPT_SUFFIX`, `DEFAULT_NEGATIVE_PROMPT`
 - Generation retry behavior:
   - first attempt uses user-requested frames/steps at highest allowed resolution
   - frame/step and resolution are downgraded only after OOM
+
+## Structured prompt dropdowns
+
+| Field | Options |
+| --- | --- |
+| subject | person, product, food, fashion, animal, vehicle, architecture, landscape, cityscape, gadget |
+| action | walking, turning head, smiling, hand gesture, hair movement, pouring, rotating, hovering, panning reveal, still |
+| camera_motion | static, slow pan, tilt, dolly in, dolly out, orbit, handheld, zoom in, zoom out |
+| shot_type | close-up, medium, wide, macro, overhead, low angle, high angle |
+| lighting | soft daylight, golden hour, studio softbox, neon, backlit, overcast, candlelight |
+| mood | cinematic, calm, energetic, moody, dreamy, documentary, romantic, dramatic |
+
+Output long-edge presets: `720`, `1080`, `1440` (aspect ratio derived from the input image).
 
 ## Restart app manually
 

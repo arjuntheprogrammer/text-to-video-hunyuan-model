@@ -1,0 +1,53 @@
+{
+  "image_path": "setup/test_input_512.png",
+  "defaults": {
+    "num_frames": 96,
+    "steps": 40,
+    "fps": 24,
+    "guidance_scale": 7.5,
+    "output_long_edge": 1080,
+    "enable_deflicker": true
+  },
+  "cases": [
+    {
+      "name": "reel_portrait_turn",
+      "prompt": "A natural close-up portrait in a real environment.",
+      "subject": "person",
+      "action": "turning head",
+      "camera_motion": "slow pan",
+      "shot_type": "close-up",
+      "lighting": "soft daylight",
+      "mood": "cinematic"
+    },
+    {
+      "name": "product_spin",
+      "prompt": "A clean product shot with subtle reflections.",
+      "subject": "product",
+      "action": "rotating",
+      "camera_motion": "static",
+      "shot_type": "macro",
+      "lighting": "studio softbox",
+      "mood": "calm"
+    },
+    {
+      "name": "food_pour",
+      "prompt": "A realistic food pour with appetizing textures.",
+      "subject": "food",
+      "action": "pouring",
+      "camera_motion": "dolly in",
+      "shot_type": "close-up",
+      "lighting": "golden hour",
+      "mood": "romantic"
+    },
+    {
+      "name": "city_reveal",
+      "prompt": "A city skyline reveal with atmospheric depth.",
+      "subject": "cityscape",
+      "action": "panning reveal",
+      "camera_motion": "slow pan",
+      "shot_type": "wide",
+      "lighting": "overcast",
+      "mood": "dramatic"
+    }
+  ]
+}

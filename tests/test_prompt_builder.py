@@ -1,6 +1,6 @@
 import unittest
 
-from app.prompt_builder import build_structured_prompt
+from app.services.prompt_builder import build_structured_prompt
 
 
 class PromptBuilderTests(unittest.TestCase):

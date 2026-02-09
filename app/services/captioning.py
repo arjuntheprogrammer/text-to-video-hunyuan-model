@@ -7,7 +7,7 @@ from typing import Optional
 import torch
 from PIL import Image
 
-from app.config import settings
+from app.core.config import settings
 
 LOGGER = logging.getLogger(__name__)
 

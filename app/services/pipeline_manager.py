@@ -10,11 +10,11 @@ from typing import Any
 import torch
 from PIL import Image
 
-from app.captioning import caption_image
-from app.config import settings
-from app.prompt_builder import build_structured_prompt
-from app.utils import clamp_int, ensure_directories
-from app.video_utils import compute_target_size, save_frames_to_mp4
+from app.services.captioning import caption_image
+from app.core.config import settings
+from app.services.prompt_builder import build_structured_prompt
+from app.utils.common import clamp_int, ensure_directories
+from app.media.video import compute_target_size, save_frames_to_mp4
 
 LOGGER = logging.getLogger(__name__)
 

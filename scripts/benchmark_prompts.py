@@ -16,9 +16,9 @@ if str(ROOT_DIR) not in sys.path:
 
 load_dotenv()
 
-from app.config import settings
-from app.pipeline import get_pipeline_manager
-from app.utils import ensure_directories
+from app.core.config import settings
+from app.services.pipeline_manager import get_pipeline_manager
+from app.utils.common import ensure_directories
 
 
 def _slugify(value: str) -> str:

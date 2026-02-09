@@ -7,8 +7,8 @@ import imageio
 import numpy as np
 from PIL import Image
 
-from app.config import settings
-from app.utils import build_timestamped_filename, ensure_directories
+from app.core.config import settings
+from app.utils.common import build_timestamped_filename, ensure_directories
 
 LOGGER = logging.getLogger(__name__)
 

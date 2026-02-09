@@ -4,10 +4,10 @@ from pathlib import Path
 import gradio as gr
 from PIL import Image
 
-from app.config import settings
-from app.pipeline import get_pipeline_manager
-from app.prompt_builder import PROMPT_FIELD_OPTIONS
-from app.utils import ensure_directories
+from app.core.config import settings
+from app.services.pipeline_manager import get_pipeline_manager
+from app.services.prompt_builder import PROMPT_FIELD_OPTIONS
+from app.utils.common import ensure_directories
 
 LOGGER = logging.getLogger(__name__)
 

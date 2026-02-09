@@ -7,7 +7,7 @@ from dotenv import load_dotenv
 
 import uvicorn
 
-from app.logging_utils import configure_logging
+from app.core.logging import configure_logging
 
 
 def main() -> None:
@@ -16,9 +16,9 @@ def main() -> None:
     logger = logging.getLogger(__name__)
     logger.info("Starting HunyuanVideo service. log_file=%s", log_file)
 
-    from app.config import settings
-    from app.gradio_ui import build_gradio_app, launch_gradio_app
-    from app.utils import ensure_directories
+    from app.core.config import settings
+    from app.ui.gradio_app import build_gradio_app, launch_gradio_app
+    from app.utils.common import ensure_directories
 
     ensure_directories()
 
@@ -26,7 +26,7 @@ def main() -> None:
     gradio_holder: dict[str, object] = {}
 
     config = uvicorn.Config(
-        "app.main:app",
+        "app.api.app:app",
         host=settings.api_host,
         port=settings.api_port,
         log_level="info",

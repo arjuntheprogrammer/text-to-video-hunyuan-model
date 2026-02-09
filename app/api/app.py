@@ -6,10 +6,10 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
 from PIL import Image, UnidentifiedImageError
 
-from app.config import settings
-from app.pipeline import get_pipeline_manager
-from app.schemas import GenerateResponse, HealthResponse
-from app.utils import ensure_directories, sanitize_filename
+from app.core.config import settings
+from app.services.pipeline_manager import get_pipeline_manager
+from app.api.schemas import GenerateResponse, HealthResponse
+from app.utils.common import ensure_directories, sanitize_filename
 
 LOGGER = logging.getLogger(__name__)
 

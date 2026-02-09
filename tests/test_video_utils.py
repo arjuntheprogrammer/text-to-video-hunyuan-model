@@ -2,7 +2,7 @@ import unittest
 
 import numpy as np
 
-from app.video_utils import compute_target_size, deflicker_frames
+from app.media.video import compute_target_size, deflicker_frames
 
 
 class VideoUtilsTests(unittest.TestCase):
